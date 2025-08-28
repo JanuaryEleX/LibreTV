@@ -40,6 +40,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // 默认启用豆瓣功能
     localStorage.setItem("doubanEnabled", "true");
 
+    // 默认搜索批次大小
+    localStorage.setItem("searchBatchSize", "5");
+
     // 标记已初始化默认值
     localStorage.setItem("hasInitializedDefaults", "true");
   }
@@ -56,6 +59,18 @@ document.addEventListener("DOMContentLoaded", function () {
   if (adFilterToggle) {
     adFilterToggle.checked =
       localStorage.getItem(PLAYER_CONFIG.adFilteringStorage) !== "false"; // 默认为true
+  }
+
+  // 设置搜索批次大小初始状态
+  const batchSizeSlider = document.getElementById("batchSizeSlider");
+  const batchSizeInput = document.getElementById("batchSizeInput");
+  const batchSizeValue = document.getElementById("batchSizeValue");
+
+  if (batchSizeSlider && batchSizeInput && batchSizeValue) {
+    const savedBatchSize = localStorage.getItem("searchBatchSize") || "5";
+    batchSizeSlider.value = savedBatchSize;
+    batchSizeInput.value = savedBatchSize;
+    batchSizeValue.textContent = savedBatchSize;
   }
 
   // 设置事件监听器
@@ -681,6 +696,45 @@ function setupEventListeners() {
       localStorage.setItem(PLAYER_CONFIG.adFilteringStorage, e.target.checked);
     });
   }
+
+  // 搜索批次大小设置事件绑定
+  const batchSizeSlider = document.getElementById("batchSizeSlider");
+  const batchSizeInput = document.getElementById("batchSizeInput");
+  const batchSizeValue = document.getElementById("batchSizeValue");
+
+  if (batchSizeSlider && batchSizeInput && batchSizeValue) {
+    // 滑块变化事件
+    batchSizeSlider.addEventListener("input", function (e) {
+      const value = e.target.value;
+      batchSizeInput.value = value;
+      batchSizeValue.textContent = value;
+      localStorage.setItem("searchBatchSize", value);
+    });
+
+    // 数字输入框变化事件
+    batchSizeInput.addEventListener("input", function (e) {
+      let value = parseInt(e.target.value);
+      // 限制范围在1-20之间
+      if (value < 1) value = 1;
+      if (value > 20) value = 20;
+
+      batchSizeSlider.value = value;
+      batchSizeValue.textContent = value;
+      localStorage.setItem("searchBatchSize", value.toString());
+    });
+
+    // 数字输入框失去焦点时验证
+    batchSizeInput.addEventListener("blur", function (e) {
+      let value = parseInt(e.target.value);
+      if (isNaN(value) || value < 1) value = 1;
+      if (value > 20) value = 20;
+
+      e.target.value = value;
+      batchSizeSlider.value = value;
+      batchSizeValue.textContent = value;
+      localStorage.setItem("searchBatchSize", value.toString());
+    });
+  }
 }
 
 // 重置搜索区域
@@ -797,10 +851,10 @@ async function search() {
     // 保存搜索历史
     saveSearchHistory(query);
 
-    // 分组并行 + 渐进式搜索：每5个API源并行搜索，然后渐进式显示
+    // 分组并行 + 渐进式搜索：使用设置中的批次大小
     let allResults = [];
     const totalAPIs = selectedAPIs.length;
-    const batchSize = 5; // 每批并行搜索5个API源
+    const batchSize = parseInt(localStorage.getItem("searchBatchSize") || "5"); // 从设置中获取批次大小
     let completedBatches = 0;
 
     // 按批次分组处理API
@@ -1479,6 +1533,7 @@ async function exportConfig() {
     "adFilteringEnabled",
     "doubanEnabled",
     "hasInitializedDefaults",
+    "searchBatchSize",
   ];
 
   // 导出设置项

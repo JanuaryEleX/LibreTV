@@ -328,7 +328,9 @@
           </div>
 
           <!-- 豆瓣热门开关 -->
-          <div class="flex items-center justify-between">
+          <div
+            class="flex items-center justify-between mb-3 pb-3 border-b border-[#222]"
+          >
             <div>
               <label class="text-sm font-medium text-gray-400"
                 >豆瓣热门推荐</label
@@ -347,6 +349,39 @@
               <div
                 class="toggle-dot absolute w-5 h-5 bg-white rounded-full top-0.5 left-0.5 transition-transform duration-300 ease-in-out"
               ></div>
+            </div>
+          </div>
+
+          <!-- 搜索批次大小设置 -->
+          <div class="flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-medium text-gray-400"
+                >搜索批次大小</label
+              >
+              <span id="batchSizeValue" class="text-xs text-blue-400 font-mono"
+                >5</span
+              >
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+              每批并行搜索的API源数量（1-20）
+            </p>
+            <div class="flex items-center space-x-2">
+              <input
+                type="range"
+                id="batchSizeSlider"
+                min="1"
+                max="20"
+                value="5"
+                class="flex-1 h-2 bg-[#333] rounded-lg appearance-none cursor-pointer slider"
+              />
+              <input
+                type="number"
+                id="batchSizeInput"
+                min="1"
+                max="20"
+                value="5"
+                class="w-16 px-2 py-1 bg-[#222] border border-[#333] rounded text-xs text-white text-center"
+              />
             </div>
           </div>
         </div>
