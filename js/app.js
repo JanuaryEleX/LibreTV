@@ -688,14 +688,20 @@ async function search() {
     saveSearchHistory(query);
 
     // 将API源分为三类：快速、中等、慢速
-    const fastAPIs = selectedAPIs.slice(0, Math.ceil(selectedAPIs.length / 3));
+    // 优化分组逻辑，确保渐进式效果更明显
+    const totalAPIs = selectedAPIs.length;
+
+    // 第一阶段：前1-2个API（快速响应）
+    const fastAPIs = selectedAPIs.slice(0, Math.min(2, totalAPIs));
+
+    // 第二阶段：接下来的API（中等速度）
     const mediumAPIs = selectedAPIs.slice(
-      Math.ceil(selectedAPIs.length / 3),
-      Math.ceil((selectedAPIs.length * 2) / 3)
+      Math.min(2, totalAPIs),
+      Math.min(4, totalAPIs)
     );
-    const slowAPIs = selectedAPIs.slice(
-      Math.ceil((selectedAPIs.length * 2) / 3)
-    );
+
+    // 第三阶段：剩余的API（慢速）
+    const slowAPIs = selectedAPIs.slice(Math.min(4, totalAPIs));
 
     let allResults = [];
 
@@ -711,9 +717,13 @@ async function search() {
         }
       });
 
-      // 显示第一阶段结果
+      // 显示第一阶段结果并隐藏加载动画
+      hideLoading(); // 隐藏加载动画
       if (allResults.length > 0) {
         displayProgressiveResults(allResults, 1, 3, query);
+      } else {
+        // 如果没有结果，显示空结果页面
+        displayProgressiveResults([], 1, 3, query);
       }
     }
 
@@ -751,8 +761,7 @@ async function search() {
   } catch (error) {
     console.error("搜索失败:", error);
     showToast("搜索失败，请重试", "error");
-  } finally {
-    hideLoading();
+    hideLoading(); // 错误时隐藏加载动画
   }
 }
 
