@@ -797,35 +797,74 @@ async function search() {
     // 保存搜索历史
     saveSearchHistory(query);
 
-    // 简化的渐进式搜索：逐个处理API，每处理完一个就显示结果
+    // 分组并行 + 渐进式搜索：每5个API源并行搜索，然后渐进式显示
     let allResults = [];
     const totalAPIs = selectedAPIs.length;
+    const batchSize = 5; // 每批并行搜索5个API源
+    let completedBatches = 0;
 
-    // 逐个处理API，实现真正的渐进式效果
-    for (let i = 0; i < selectedAPIs.length; i++) {
+    // 按批次分组处理API
+    for (let i = 0; i < selectedAPIs.length; i += batchSize) {
       // 检查搜索是否被取消
       if (window.currentSearchAbortController.signal.aborted) {
         return;
       }
 
-      const apiId = selectedAPIs[i];
-      const results = await searchByAPIAndKeyWord(apiId, query);
+      // 获取当前批次的API源
+      const currentBatch = selectedAPIs.slice(i, i + batchSize);
+      const batchStartIndex = i;
+      const batchEndIndex = Math.min(i + batchSize, selectedAPIs.length);
 
-      // 再次检查搜索是否被取消（API调用后）
+      console.log(
+        `🔄 开始搜索批次 ${completedBatches + 1}: API ${
+          batchStartIndex + 1
+        }-${batchEndIndex}`
+      );
+
+      // 并行搜索当前批次的所有API
+      const batchPromises = currentBatch.map(async (apiId, batchIndex) => {
+        try {
+          const results = await searchByAPIAndKeyWord(apiId, query);
+          return {
+            apiId,
+            results: Array.isArray(results) ? results : [],
+            success: true,
+          };
+        } catch (error) {
+          console.error(`API ${apiId} 搜索失败:`, error);
+          return {
+            apiId,
+            results: [],
+            success: false,
+            error: error.message,
+          };
+        }
+      });
+
+      // 等待当前批次的所有API完成
+      const batchResults = await Promise.all(batchPromises);
+
+      // 再次检查搜索是否被取消
       if (window.currentSearchAbortController.signal.aborted) {
         return;
       }
 
-      if (Array.isArray(results) && results.length > 0) {
-        allResults = allResults.concat(results);
-      }
+      // 合并当前批次的结果
+      batchResults.forEach(({ apiId, results, success }) => {
+        if (success && results.length > 0) {
+          allResults = allResults.concat(results);
+          console.log(`✅ API ${apiId} 完成，获得 ${results.length} 个结果`);
+        } else if (!success) {
+          console.log(`❌ API ${apiId} 搜索失败`);
+        }
+      });
 
-      // 每处理完一个API就更新显示
-      const currentStage = i + 1;
+      completedBatches++;
+      const currentStage = Math.min(i + batchSize, totalAPIs);
       const totalStages = totalAPIs;
 
-      // 第一个API完成后隐藏加载动画
-      if (currentStage === 1) {
+      // 第一个批次完成后隐藏加载动画
+      if (completedBatches === 1) {
         hideLoading();
       }
 
@@ -1935,7 +1974,7 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
             <span class="text-lg font-medium text-gray-400">正在搜索更多结果...</span>
           </div>
-          <p class="text-sm text-gray-500">已搜索 ${currentStage}/${totalStages} 个数据源，正在继续搜索</p>
+          <p class="text-sm text-gray-500">已搜索 ${currentStage}/${totalStages} 个数据源（并行批次搜索），正在继续搜索</p>
         </div>
       `;
     } else {
@@ -2102,7 +2141,7 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     progressText = `<div class="col-span-full text-center py-4 text-sm text-gray-400">
        <div class="flex items-center justify-center gap-2">
          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-         <span>正在搜索更多结果... (${currentStage}/${totalStages})</span>
+         <span>正在搜索更多结果... (${currentStage}/${totalStages} 并行批次)</span>
        </div>
      </div>`;
   }
