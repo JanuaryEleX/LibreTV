@@ -1520,7 +1520,8 @@ function displayCachedResults(cachedData, query) {
   if (
     !cachedData.isComplete &&
     cachedData.remainingAPIs &&
-    cachedData.remainingAPIs.length > 0
+    cachedData.remainingAPIs.length > 0 &&
+    !cachedData.searchCompleted // 添加明确的完成检查
   ) {
     window.isSearchActive = true;
     window.currentSearchId = cachedData.searchId || Date.now();
@@ -2315,8 +2316,20 @@ function processAndDisplayFinalResults(allResults, query) {
     results: allResults,
     timestamp: Date.now(),
     isComplete: true,
-    currentStage: 999, // 表示已完成
-    totalStages: 999,
+    currentStage: selectedAPIs.length, // 使用实际的API数量
+    totalStages: selectedAPIs.length,
+    // 保存搜索状态信息（保持一致性）
+    searchId: window.currentSearchId,
+    searchQuery: query,
+    isSearchActive: false, // 搜索已完成
+    // 保存已完成的API列表
+    completedAPIs: selectedAPIs,
+    remainingAPIs: [], // 没有剩余的API
+    // 保存累积信息
+    accumulatedCount: allResults.length,
+    lastUpdateStage: selectedAPIs.length,
+    // 添加明确的完成标记
+    searchCompleted: true,
   };
 
   // 只有在搜索活跃时才更新缓存
