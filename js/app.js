@@ -68,64 +68,40 @@ document.addEventListener("DOMContentLoaded", function () {
   setupPageLeaveHandlers();
 
   // 检查URL参数，处理搜索状态
-  console.log("页面初始化完成，开始检查URL状态");
   checkURLForSearchState();
 });
 
 // 检查URL中的搜索状态
 function checkURLForSearchState() {
   const path = window.location.pathname;
-  console.log("checkURLForSearchState - 当前路径:", path);
 
   if (path.startsWith("/s=")) {
     const query = decodeURIComponent(path.substring(3));
     const state = history.state;
 
-    console.log("检测到搜索URL:", query, "状态:", state);
-
     if (state && state.status === "searching") {
       // 正在搜索状态，显示搜索中界面
-      console.log("显示搜索中状态");
       showSearchingState(query);
     } else {
       // 检查是否有缓存结果
       const cacheKey = `searchResults_${query}`;
-      console.log("查找缓存键:", cacheKey);
-
-      // 列出所有相关的缓存键
-      const allKeys = Object.keys(localStorage);
-      const relatedKeys = allKeys.filter((key) =>
-        key.includes("searchResults_")
-      );
-      console.log("所有搜索缓存键:", relatedKeys);
 
       const cachedData = localStorage.getItem(cacheKey);
-      console.log("缓存数据:", cachedData ? "存在" : "不存在");
 
       if (cachedData) {
         try {
           const parsedData = JSON.parse(cachedData);
-          console.log("解析的缓存数据:", parsedData);
 
           // 检查缓存是否过期（2小时）
           const cacheAge = Date.now() - parsedData.timestamp;
           const cacheExpirationTime = 2 * 60 * 60 * 1000; // 2小时
-          console.log(
-            "缓存年龄:",
-            cacheAge,
-            "ms, 过期时间:",
-            cacheExpirationTime,
-            "ms"
-          );
 
           if (cacheAge < cacheExpirationTime) {
             // 缓存有效，直接显示
-            console.log("缓存有效，直接显示结果");
             displayCachedResults(parsedData, query);
             return;
           } else {
             // 缓存过期，删除
-            console.log("缓存过期，删除");
             localStorage.removeItem(cacheKey);
           }
         } catch (e) {
@@ -135,12 +111,9 @@ function checkURLForSearchState() {
       }
 
       // 没有有效缓存，重新搜索
-      console.log("没有缓存，重新搜索:", query);
       document.getElementById("searchInput").value = query;
       search();
     }
-  } else {
-    console.log("路径不是搜索URL，跳过缓存检查");
   }
 }
 
@@ -624,7 +597,6 @@ function setupPageLeaveHandlers() {
   window.addEventListener("beforeunload", function () {
     if (window.currentSearchAbortController) {
       window.currentSearchAbortController.abort();
-      console.log("搜索已被取消（页面离开）");
     }
     // 清除搜索状态
     window.isSearchActive = false;
@@ -637,7 +609,6 @@ function setupPageLeaveHandlers() {
     if (document.hidden && window.currentSearchAbortController) {
       // 页面隐藏时不取消搜索，让搜索在后台继续进行
       // 这样用户切换标签页或最小化窗口时，搜索仍会继续
-      console.log("页面隐藏，搜索继续在后台运行");
     }
   });
 }
@@ -717,7 +688,6 @@ function resetSearchArea() {
   // 条件取消搜索：只有在明确回到首页时才取消
   if (window.currentSearchAbortController) {
     window.currentSearchAbortController.abort();
-    console.log("搜索已被取消（重置搜索区域）");
   }
 
   // 清除搜索状态
@@ -835,7 +805,6 @@ async function search() {
     for (let i = 0; i < selectedAPIs.length; i++) {
       // 检查搜索是否被取消
       if (window.currentSearchAbortController.signal.aborted) {
-        console.log("搜索已被取消");
         return;
       }
 
@@ -844,7 +813,6 @@ async function search() {
 
       // 再次检查搜索是否被取消（API调用后）
       if (window.currentSearchAbortController.signal.aborted) {
-        console.log("搜索已被取消");
         return;
       }
 
@@ -890,7 +858,6 @@ function clearSearchInput() {
   // 条件取消搜索：清空搜索框时取消搜索
   if (window.currentSearchAbortController) {
     window.currentSearchAbortController.abort();
-    console.log("搜索已被取消（清空搜索框）");
   }
 
   // 清除搜索状态
@@ -1546,8 +1513,6 @@ function updateSearchURL(query, status) {
 
 // 显示缓存的搜索结果
 function displayCachedResults(cachedData, query) {
-  console.log("显示缓存的搜索结果:", query);
-
   // 恢复搜索状态
   window.currentSearchQuery = query;
 
@@ -1557,7 +1522,6 @@ function displayCachedResults(cachedData, query) {
     cachedData.remainingAPIs &&
     cachedData.remainingAPIs.length > 0
   ) {
-    console.log("恢复未完成的搜索状态");
     window.isSearchActive = true;
     window.currentSearchId = cachedData.searchId || Date.now();
 
@@ -1567,9 +1531,6 @@ function displayCachedResults(cachedData, query) {
   } else {
     // 搜索已完成，设置状态为非活跃
     window.isSearchActive = false;
-
-    // 如果搜索已完成，直接显示最终结果，不再进行后台搜索
-    console.log("搜索已完成，直接显示累积缓存结果，不进行后台搜索");
   }
 
   // 更新搜索框
@@ -1594,7 +1555,6 @@ function displayCachedResults(cachedData, query) {
 
     // 如果缓存时间超过预期搜索时间，认为搜索已完成
     if (cacheAge > expectedSearchTime) {
-      console.log("缓存显示搜索未完成，但时间过长，认为搜索已完成");
       cachedData.isComplete = true;
       cachedData.currentStage = cachedData.totalStages;
 
@@ -1798,8 +1758,6 @@ function displayCachedResults(cachedData, query) {
 
 // 从缓存继续搜索
 async function continueSearchFromCache(cachedData, query) {
-  console.log("从缓存继续搜索:", query);
-
   // 确保加载动画已隐藏
   const loading = document.getElementById("loading");
   if (loading) {
@@ -1824,7 +1782,6 @@ async function continueSearchFromCache(cachedData, query) {
       window.currentSearchAbortController &&
       window.currentSearchAbortController.signal.aborted
     ) {
-      console.log("搜索已被取消");
       return;
     }
 
@@ -1836,7 +1793,6 @@ async function continueSearchFromCache(cachedData, query) {
       window.currentSearchAbortController &&
       window.currentSearchAbortController.signal.aborted
     ) {
-      console.log("搜索已被取消");
       return;
     }
 
@@ -1863,8 +1819,6 @@ async function continueSearchFromCache(cachedData, query) {
 
 // 显示搜索中状态
 function showSearchingState(query) {
-  console.log("显示搜索中状态:", query);
-
   // 更新搜索框
   document.getElementById("searchInput").value = query;
 
@@ -1901,13 +1855,11 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     window.currentSearchAbortController &&
     window.currentSearchAbortController.signal.aborted
   ) {
-    console.log("忽略已取消的搜索结果");
     return;
   }
 
   // 检查搜索状态是否有效
   if (!window.isSearchActive) {
-    console.log("忽略非活跃搜索的结果");
     return;
   }
 
@@ -1916,13 +1868,11 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     window.currentSearchId &&
     window.currentSearchId !== window.currentSearchId
   ) {
-    console.log("忽略过期的搜索结果（ID不匹配）");
     return;
   }
 
   // 检查搜索关键词是否匹配
   if (window.currentSearchQuery && window.currentSearchQuery !== query) {
-    console.log("忽略过期的搜索结果（关键词不匹配）");
     return;
   }
 
@@ -1980,13 +1930,7 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
 
   // 只有在搜索活跃时才更新缓存，避免缓存冲突
   if (window.isSearchActive) {
-    console.log("保存累积缓存:", cacheKey, {
-      ...cacheData,
-      results: `[${cacheData.results.length} 个结果]`, // 简化日志输出
-    });
     localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-  } else {
-    console.log("搜索非活跃，跳过缓存更新");
   }
   // 显示结果区域
   document.getElementById("searchArea").classList.remove("flex-1");
@@ -2196,7 +2140,6 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
 function processAndDisplayFinalResults(allResults, query) {
   // 检查搜索状态是否有效
   if (!window.isSearchActive) {
-    console.log("忽略非活跃搜索的最终结果");
     return;
   }
 
@@ -2205,13 +2148,11 @@ function processAndDisplayFinalResults(allResults, query) {
     window.currentSearchId &&
     window.currentSearchId !== window.currentSearchId
   ) {
-    console.log("忽略过期的最终结果（ID不匹配）");
     return;
   }
 
   // 检查搜索关键词是否匹配
   if (window.currentSearchQuery && window.currentSearchQuery !== query) {
-    console.log("忽略过期的最终结果（关键词不匹配）");
     return;
   }
   // 智能相关性排序和过滤：只显示相关结果
@@ -2380,10 +2321,7 @@ function processAndDisplayFinalResults(allResults, query) {
 
   // 只有在搜索活跃时才更新缓存
   if (window.isSearchActive) {
-    console.log("保存最终缓存:", cacheKey, cacheData);
     localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-  } else {
-    console.log("搜索非活跃，跳过最终缓存更新");
   }
 
   // 更新搜索结果计数
