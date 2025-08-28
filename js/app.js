@@ -652,6 +652,9 @@ function getCustomApiInfo(customApiIndex) {
 
 // 搜索功能 - 修改为支持渐进式搜索
 async function search() {
+  // 生成当前搜索的唯一标识，用于防止延迟结果覆盖新搜索
+  const currentSearchId = Date.now();
+  window.currentSearchId = currentSearchId;
   // 强化的密码保护校验 - 防止绕过
   try {
     if (window.ensurePasswordProtection) {
@@ -682,6 +685,9 @@ async function search() {
   }
 
   showLoading();
+
+  // 清除之前的搜索结果，防止延迟结果覆盖
+  document.getElementById("results").innerHTML = "";
 
   try {
     // 保存搜索历史
@@ -722,38 +728,61 @@ async function search() {
       if (allResults.length > 0) {
         displayProgressiveResults(allResults, 1, 3, query);
       } else {
-        // 如果没有结果，显示空结果页面
-        displayProgressiveResults([], 1, 3, query);
+        // 第一阶段没有结果，但可能后续阶段有结果，显示搜索中状态
+        displayProgressiveResults([], 1, 3, query, true); // 添加参数表示正在搜索更多
       }
     }
 
-    // 第二阶段：中等API（3-5秒内显示）
+    // 第二阶段：中等API（细分显示）
     if (mediumAPIs.length > 0) {
-      const mediumResults = await Promise.all(
-        mediumAPIs.map((apiId) => searchByAPIAndKeyWord(apiId, query))
-      );
+      // 逐个处理中等API，让用户看到更细粒度的进度
+      for (let i = 0; i < mediumAPIs.length; i++) {
+        const apiId = mediumAPIs[i];
+        const results = await searchByAPIAndKeyWord(apiId, query);
 
-      mediumResults.forEach((results) => {
         if (Array.isArray(results) && results.length > 0) {
           allResults = allResults.concat(results);
         }
-      });
 
-      // 显示第二阶段结果
-      displayProgressiveResults(allResults, 2, 3, query);
+        // 每处理完一个API就更新显示
+        const currentSubStage = i + 1;
+        const totalSubStages = mediumAPIs.length;
+        displayProgressiveResults(
+          allResults,
+          2,
+          3,
+          query,
+          false,
+          currentSubStage,
+          totalSubStages
+        );
+      }
     }
 
-    // 第三阶段：慢速API（完整结果）
+    // 第三阶段：慢速API（细分显示）
     if (slowAPIs.length > 0) {
-      const slowResults = await Promise.all(
-        slowAPIs.map((apiId) => searchByAPIAndKeyWord(apiId, query))
-      );
+      // 逐个处理慢速API，让用户看到更细粒度的进度
+      for (let i = 0; i < slowAPIs.length; i++) {
+        const apiId = slowAPIs[i];
+        const results = await searchByAPIAndKeyWord(apiId, query);
 
-      slowResults.forEach((results) => {
         if (Array.isArray(results) && results.length > 0) {
           allResults = allResults.concat(results);
         }
-      });
+
+        // 每处理完一个API就更新显示
+        const currentSubStage = i + 1;
+        const totalSubStages = slowAPIs.length;
+        displayProgressiveResults(
+          allResults,
+          3,
+          3,
+          query,
+          false,
+          currentSubStage,
+          totalSubStages
+        );
+      }
     }
 
     // 最终处理和显示
@@ -1407,7 +1436,23 @@ function saveStringAsFile(content, fileName) {
 // 移除Node.js的require语句，因为这是在浏览器环境中运行的
 
 // 渐进式显示搜索结果
-function displayProgressiveResults(results, currentStage, totalStages, query) {
+function displayProgressiveResults(
+  results,
+  currentStage,
+  totalStages,
+  query,
+  searchingMore = false,
+  currentSubStage = 0,
+  totalSubStages = 0
+) {
+  // 检查是否是当前搜索的结果，防止延迟结果覆盖新搜索
+  if (
+    window.currentSearchId &&
+    window.currentSearchId !== window.currentSearchId
+  ) {
+    console.log("忽略过期的搜索结果");
+    return;
+  }
   // 显示结果区域
   document.getElementById("searchArea").classList.remove("flex-1");
   document.getElementById("searchArea").classList.add("mb-8");
@@ -1423,16 +1468,30 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
 
   // 如果没有结果
   if (!results || results.length === 0) {
-    resultsDiv.innerHTML = `
-      <div class="col-span-full text-center py-16">
-        <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <h3 class="mt-2 text-lg font-medium text-gray-400">没有找到匹配的结果</h3>
-        <p class="mt-1 text-sm text-gray-500">请尝试其他关键词或更换数据源</p>
-      </div>
-    `;
+    if (searchingMore) {
+      // 正在搜索更多结果，显示搜索中状态
+      resultsDiv.innerHTML = `
+        <div class="col-span-full text-center py-16">
+          <div class="flex items-center justify-center gap-2 mb-4">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            <span class="text-lg font-medium text-gray-400">正在搜索更多结果...</span>
+          </div>
+          <p class="text-sm text-gray-500">第一阶段未找到结果，正在搜索其他数据源</p>
+        </div>
+      `;
+    } else {
+      // 最终确认没有结果
+      resultsDiv.innerHTML = `
+        <div class="col-span-full text-center py-16">
+          <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="mt-2 text-lg font-medium text-gray-400">没有找到匹配的结果</h3>
+          <p class="mt-1 text-sm text-gray-500">请尝试其他关键词或更换数据源</p>
+        </div>
+      `;
+    }
     return;
   }
 
@@ -1566,15 +1625,26 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     .join("");
 
   // 添加进度提示
-  const progressText =
-    currentStage < totalStages
-      ? `<div class="col-span-full text-center py-4 text-sm text-gray-400">
+  let progressText = "";
+  if (currentStage < totalStages) {
+    if (currentSubStage > 0 && totalSubStages > 0) {
+      // 显示子阶段进度
+      progressText = `<div class="col-span-full text-center py-4 text-sm text-gray-400">
+         <div class="flex items-center justify-center gap-2">
+           <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+           <span>正在搜索更多结果... (第${currentStage}阶段: ${currentSubStage}/${totalSubStages})</span>
+         </div>
+       </div>`;
+    } else {
+      // 显示主阶段进度
+      progressText = `<div class="col-span-full text-center py-4 text-sm text-gray-400">
          <div class="flex items-center justify-center gap-2">
            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
            <span>正在搜索更多结果... (${currentStage}/${totalStages})</span>
          </div>
-       </div>`
-      : "";
+       </div>`;
+    }
+  }
 
   resultsDiv.innerHTML = safeResults + progressText;
 
