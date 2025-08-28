@@ -559,13 +559,9 @@ function setupPageLeaveHandlers() {
   // 监听页面隐藏事件（切换到其他标签页）
   document.addEventListener("visibilitychange", function () {
     if (document.hidden && window.currentSearchAbortController) {
-      // 页面隐藏时取消搜索，节省资源
-      window.currentSearchAbortController.abort();
-      console.log("搜索已被取消（页面隐藏）");
-      // 清除搜索状态
-      window.isSearchActive = false;
-      window.currentSearchId = null;
-      window.currentSearchQuery = null;
+      // 页面隐藏时不取消搜索，让搜索在后台继续进行
+      // 这样用户切换标签页或最小化窗口时，搜索仍会继续
+      console.log("页面隐藏，搜索继续在后台运行");
     }
   });
 }
@@ -1656,6 +1652,19 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     })
     .join("");
 
+  // 实时更新缓存 - 每次有新结果时都更新
+  const topSources = sortedResults.slice(0, 15);
+  localStorage.setItem(
+    "quickSwitchSources",
+    JSON.stringify({
+      query: query,
+      sources: topSources,
+      timestamp: Date.now(),
+      isComplete: false, // 标记搜索是否完成
+      progress: `${currentStage}/${totalStages}`, // 显示搜索进度
+    })
+  );
+
   // 添加进度提示
   let progressText = "";
   if (currentStage < totalStages) {
@@ -1839,7 +1848,7 @@ function processAndDisplayFinalResults(allResults, query) {
     return cleanItem;
   });
 
-  // 保存前15个最匹配的源用于快速切换
+  // 保存前15个最匹配的源用于快速切换，并标记搜索完成
   const topSources = allResults.slice(0, 15);
   localStorage.setItem(
     "quickSwitchSources",
@@ -1847,6 +1856,8 @@ function processAndDisplayFinalResults(allResults, query) {
       query: query,
       sources: topSources,
       timestamp: Date.now(),
+      isComplete: true, // 标记搜索已完成
+      progress: "完成", // 显示搜索完成状态
     })
   );
 
