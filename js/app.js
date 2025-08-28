@@ -63,6 +63,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 初始检查成人API选中状态
   setTimeout(checkAdultAPIsSelected, 100);
+
+  // 添加页面离开时的搜索取消逻辑
+  setupPageLeaveHandlers();
 });
 
 // 初始化API复选框
@@ -539,6 +542,26 @@ function toggleSettings(e) {
   }
 }
 
+// 设置页面离开时的搜索取消逻辑
+function setupPageLeaveHandlers() {
+  // 监听页面离开事件（关闭标签页、刷新页面等）
+  window.addEventListener("beforeunload", function () {
+    if (window.currentSearchAbortController) {
+      window.currentSearchAbortController.abort();
+      console.log("搜索已被取消（页面离开）");
+    }
+  });
+
+  // 监听页面隐藏事件（切换到其他标签页）
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden && window.currentSearchAbortController) {
+      // 页面隐藏时取消搜索，节省资源
+      window.currentSearchAbortController.abort();
+      console.log("搜索已被取消（页面隐藏）");
+    }
+  });
+}
+
 // 设置事件监听器
 function setupEventListeners() {
   // 回车搜索
@@ -611,6 +634,15 @@ function setupEventListeners() {
 
 // 重置搜索区域
 function resetSearchArea() {
+  // 条件取消搜索：只有在明确回到首页时才取消
+  if (window.currentSearchAbortController) {
+    window.currentSearchAbortController.abort();
+    console.log("搜索已被取消（重置搜索区域）");
+  }
+
+  // 隐藏加载动画
+  hideLoading();
+
   // 清理搜索结果
   document.getElementById("results").innerHTML = "";
   document.getElementById("searchInput").value = "";
@@ -655,6 +687,14 @@ async function search() {
   // 生成当前搜索的唯一标识，用于防止延迟结果覆盖新搜索
   const currentSearchId = Date.now();
   window.currentSearchId = currentSearchId;
+
+  // 取消之前的搜索（如果存在）
+  if (window.currentSearchAbortController) {
+    window.currentSearchAbortController.abort();
+  }
+
+  // 创建新的 AbortController 用于取消搜索
+  window.currentSearchAbortController = new AbortController();
   // 强化的密码保护校验 - 防止绕过
   try {
     if (window.ensurePasswordProtection) {
@@ -699,8 +739,20 @@ async function search() {
 
     // 逐个处理API，实现真正的渐进式效果
     for (let i = 0; i < selectedAPIs.length; i++) {
+      // 检查搜索是否被取消
+      if (window.currentSearchAbortController.signal.aborted) {
+        console.log("搜索已被取消");
+        return;
+      }
+
       const apiId = selectedAPIs[i];
       const results = await searchByAPIAndKeyWord(apiId, query);
+
+      // 再次检查搜索是否被取消（API调用后）
+      if (window.currentSearchAbortController.signal.aborted) {
+        console.log("搜索已被取消");
+        return;
+      }
 
       if (Array.isArray(results) && results.length > 0) {
         allResults = allResults.concat(results);
@@ -741,6 +793,15 @@ function toggleClearButton() {
 
 // 清空搜索框内容
 function clearSearchInput() {
+  // 条件取消搜索：清空搜索框时取消搜索
+  if (window.currentSearchAbortController) {
+    window.currentSearchAbortController.abort();
+    console.log("搜索已被取消（清空搜索框）");
+  }
+
+  // 隐藏加载动画
+  hideLoading();
+
   const searchInput = document.getElementById("searchInput");
   searchInput.value = "";
   const clearButton = document.getElementById("clearSearchInput");
@@ -1371,6 +1432,15 @@ function saveStringAsFile(content, fileName) {
 
 // 渐进式显示搜索结果
 function displayProgressiveResults(results, currentStage, totalStages, query) {
+  // 检查搜索是否被取消
+  if (
+    window.currentSearchAbortController &&
+    window.currentSearchAbortController.signal.aborted
+  ) {
+    console.log("忽略已取消的搜索结果");
+    return;
+  }
+
   // 检查是否是当前搜索的结果，防止延迟结果覆盖新搜索
   if (
     window.currentSearchId &&
