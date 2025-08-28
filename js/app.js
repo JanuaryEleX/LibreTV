@@ -1058,7 +1058,7 @@ function playVideo(url, vod_name, sourceCode, episodeIndex = 0, vodId = "") {
   }
 
   // 获取当前路径作为返回页面
-  let currentPath = window.location.href;
+  let currentPath = window.location.pathname + window.location.search;
 
   // 构建播放页面URL，使用watch.html作为中间跳转页
   let watchUrl = `watch.html?id=${vodId || ""}&source=${
