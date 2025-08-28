@@ -1552,6 +1552,24 @@ function displayCachedResults(cachedData, query) {
     doubanArea.classList.add("hidden");
   }
 
+  // 检查搜索状态的一致性
+  if (!cachedData.isComplete) {
+    // 如果缓存显示搜索未完成，检查实际搜索状态
+    const cacheAge = Date.now() - cachedData.timestamp;
+    const expectedSearchTime = 30000; // 预期搜索时间30秒
+
+    // 如果缓存时间超过预期搜索时间，认为搜索已完成
+    if (cacheAge > expectedSearchTime) {
+      console.log("缓存显示搜索未完成，但时间过长，认为搜索已完成");
+      cachedData.isComplete = true;
+      cachedData.currentStage = cachedData.totalStages;
+
+      // 更新缓存状态
+      const cacheKey = `searchResults_${query}`;
+      localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+    }
+  }
+
   // 显示结果
   if (cachedData.isComplete) {
     // 搜索已完成，直接显示最终结果
@@ -1699,7 +1717,19 @@ function displayCachedResults(cachedData, query) {
       })
       .join("");
 
-    resultsDiv.innerHTML = safeResults;
+    // 添加搜索完成提示
+    const completionText = `
+      <div class="col-span-full text-center py-4 text-sm text-green-400">
+        <div class="flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <span>搜索已完成 - 共找到 ${filteredResults.length} 个结果</span>
+        </div>
+      </div>
+    `;
+
+    resultsDiv.innerHTML = safeResults + completionText;
 
     // 更新搜索结果计数
     const searchResultsCount = document.getElementById("searchResultsCount");
