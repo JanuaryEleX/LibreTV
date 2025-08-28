@@ -66,7 +66,52 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 添加页面离开时的搜索取消逻辑
   setupPageLeaveHandlers();
+
+  // 检查URL参数，处理搜索状态
+  checkURLForSearchState();
 });
+
+// 检查URL中的搜索状态
+function checkURLForSearchState() {
+  const path = window.location.pathname;
+  if (path.startsWith("/s=")) {
+    const query = decodeURIComponent(path.substring(3));
+    const state = history.state;
+
+    console.log("检测到搜索URL:", query, "状态:", state);
+
+    if (state && state.status === "searching") {
+      // 正在搜索状态，显示搜索中界面
+      showSearchingState(query);
+    } else {
+      // 检查是否有缓存结果
+      const cachedData = localStorage.getItem(`searchResults_${query}`);
+      if (cachedData) {
+        try {
+          const parsedData = JSON.parse(cachedData);
+          // 检查缓存是否过期（30分钟）
+          const cacheAge = Date.now() - parsedData.timestamp;
+          if (cacheAge < 30 * 60 * 1000) {
+            // 缓存有效，直接显示
+            displayCachedResults(parsedData, query);
+            return;
+          } else {
+            // 缓存过期，删除
+            localStorage.removeItem(`searchResults_${query}`);
+          }
+        } catch (e) {
+          console.error("解析缓存数据失败:", e);
+          localStorage.removeItem(`searchResults_${query}`);
+        }
+      }
+
+      // 没有有效缓存，重新搜索
+      console.log("没有缓存，重新搜索:", query);
+      document.getElementById("searchInput").value = query;
+      search();
+    }
+  }
+}
 
 // 初始化API复选框
 function initAPICheckboxes() {
@@ -740,6 +785,9 @@ async function search() {
   }
 
   showLoading();
+
+  // 立即更新URL状态为搜索中
+  updateSearchURL(query, "searching");
 
   // 清除之前的搜索结果，防止延迟结果覆盖
   document.getElementById("results").innerHTML = "";
@@ -1448,6 +1496,246 @@ function saveStringAsFile(content, fileName) {
 
 // 移除Node.js的require语句，因为这是在浏览器环境中运行的
 
+// 智能URL更新函数
+function updateSearchURL(query, status) {
+  try {
+    const encodedQuery = encodeURIComponent(query);
+    const title = status === "partial" ? `搜索中: ${query}` : `搜索: ${query}`;
+
+    window.history.pushState(
+      { search: query, status: status },
+      `${title} - LibreTV`,
+      `/s=${encodedQuery}`
+    );
+    document.title = `${title} - LibreTV`;
+  } catch (e) {
+    console.error("更新URL失败:", e);
+  }
+}
+
+// 显示缓存的搜索结果
+function displayCachedResults(cachedData, query) {
+  console.log("显示缓存的搜索结果:", query);
+
+  // 设置搜索状态
+  window.isSearchActive = false;
+  window.currentSearchQuery = query;
+
+  // 更新搜索框
+  document.getElementById("searchInput").value = query;
+
+  // 显示结果区域
+  document.getElementById("searchArea").classList.remove("flex-1");
+  document.getElementById("searchArea").classList.add("mb-8");
+  document.getElementById("resultsArea").classList.remove("hidden");
+
+  // 隐藏豆瓣推荐区域
+  const doubanArea = document.getElementById("doubanArea");
+  if (doubanArea) {
+    doubanArea.classList.add("hidden");
+  }
+
+  // 显示结果
+  if (cachedData.isComplete) {
+    // 搜索已完成，直接显示最终结果
+    const resultsDiv = document.getElementById("results");
+
+    // 处理搜索结果过滤
+    let filteredResults = cachedData.results;
+    const yellowFilterEnabled =
+      localStorage.getItem("yellowFilterEnabled") === "true";
+    if (yellowFilterEnabled) {
+      const banned = [
+        "伦理片",
+        "福利",
+        "里番动漫",
+        "门事件",
+        "萝莉少女",
+        "制服诱惑",
+        "国产传媒",
+        "cosplay",
+        "黑丝诱惑",
+        "无码",
+        "日本无码",
+        "有码",
+        "日本有码",
+        "SWAG",
+        "网红主播",
+        "色情片",
+        "同性片",
+        "福利视频",
+        "福利片",
+      ];
+      filteredResults = filteredResults.filter((item) => {
+        const typeName = item.type_name || "";
+        return !banned.some((keyword) => typeName.includes(keyword));
+      });
+    }
+
+    // 渲染结果
+    const safeResults = filteredResults
+      .map((item) => {
+        const safeId = item.vod_id
+          ? item.vod_id.toString().replace(/[^\w-]/g, "")
+          : "";
+        const safeName = (item.vod_name || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeRemarks = (item.vod_remarks || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safePic = (item.vod_pic || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeYear = (item.vod_year || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeArea = (item.vod_area || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeLang = (item.vod_lang || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeSourceCode = (item.source_code || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeSourceName = (item.source_name || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+
+        const sourceInfo = safeSourceName
+          ? `<span class="text-xs text-gray-400">来源: ${safeSourceName}</span>`
+          : "";
+
+        return `
+        <div class="bg-[#1a1a1a] rounded-lg overflow-hidden border border-[#333] hover:border-[#555] transition-all duration-300 hover:shadow-lg hover:shadow-black/20 group cursor-pointer"
+             onclick="showDetails('${safeId}', '${safeName.replace(
+          /'/g,
+          "\\'"
+        )}', '${safeSourceCode}')">
+          <div class="relative">
+            <img src="${safePic || "image/nomedia.png"}" 
+                 alt="${safeName}" 
+                 class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                 onerror="this.src='image/nomedia.png'">
+            <div class="absolute top-2 left-2 flex flex-wrap gap-1">
+              ${
+                (item.type_name || "").toString().replace(/</g, "&lt;")
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-blue-500 text-blue-300">
+                ${(item.type_name || "")
+                  .toString()
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;")}
+              </span>`
+                  : ""
+              }
+            </div>
+          </div>
+          <div class="p-4">
+            <h3 class="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
+              ${safeName}
+            </h3>
+            <p class="text-sm text-gray-400 mb-3 line-clamp-2">
+              ${safeRemarks || "暂无简介"}
+            </p>
+            <div class="flex flex-wrap gap-1 mb-2">
+              ${
+                safeYear
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeYear}</span>`
+                  : ""
+              }
+              ${
+                safeArea
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeArea}</span>`
+                  : ""
+              }
+              ${
+                safeLang
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeLang}</span>`
+                  : ""
+              }
+            </div>
+            
+            <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
+              ${sourceInfo ? `<div>${sourceInfo}</div>` : "<div></div>"}
+            </div>
+          </div>
+        </div>
+      `;
+      })
+      .join("");
+
+    resultsDiv.innerHTML = safeResults;
+
+    // 更新搜索结果计数
+    const searchResultsCount = document.getElementById("searchResultsCount");
+    if (searchResultsCount) {
+      searchResultsCount.textContent = filteredResults.length;
+    }
+  } else {
+    // 搜索未完成，显示当前进度
+    displayProgressiveResults(
+      cachedData.results,
+      cachedData.currentStage,
+      cachedData.totalStages,
+      query
+    );
+  }
+
+  // 更新URL状态
+  updateSearchURL(query, cachedData.isComplete ? "complete" : "partial");
+}
+
+// 显示搜索中状态
+function showSearchingState(query) {
+  console.log("显示搜索中状态:", query);
+
+  // 更新搜索框
+  document.getElementById("searchInput").value = query;
+
+  // 显示搜索中界面
+  document.getElementById("searchArea").classList.remove("flex-1");
+  document.getElementById("searchArea").classList.add("mb-8");
+  document.getElementById("resultsArea").classList.remove("hidden");
+
+  // 隐藏豆瓣推荐区域
+  const doubanArea = document.getElementById("doubanArea");
+  if (doubanArea) {
+    doubanArea.classList.add("hidden");
+  }
+
+  // 显示搜索中提示
+  document.getElementById("results").innerHTML = `
+    <div class="col-span-full text-center py-16">
+      <div class="flex items-center justify-center gap-2 mb-4">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+        <span class="text-lg font-medium text-gray-400">正在搜索...</span>
+      </div>
+      <p class="text-sm text-gray-500">搜索关键词: ${query}</p>
+    </div>
+  `;
+
+  // 更新URL状态
+  updateSearchURL(query, "searching");
+}
+
 // 渐进式显示搜索结果
 function displayProgressiveResults(results, currentStage, totalStages, query) {
   // 检查搜索是否被取消
@@ -1479,6 +1767,23 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     console.log("忽略过期的搜索结果（关键词不匹配）");
     return;
   }
+
+  // 第一个API有结果时立即更新URL
+  if (currentStage === 1 && results && results.length > 0) {
+    updateSearchURL(query, "partial");
+  }
+
+  // 缓存当前结果
+  localStorage.setItem(
+    `searchResults_${query}`,
+    JSON.stringify({
+      results: results,
+      timestamp: Date.now(),
+      isComplete: currentStage === totalStages,
+      currentStage: currentStage,
+      totalStages: totalStages,
+    })
+  );
   // 显示结果区域
   document.getElementById("searchArea").classList.remove("flex-1");
   document.getElementById("searchArea").classList.add("mb-8");
@@ -1894,22 +2199,8 @@ function processAndDisplayFinalResults(allResults, query) {
     return;
   }
 
-  // 有搜索结果时，才更新URL
-  try {
-    // 使用URI编码确保特殊字符能够正确显示
-    const encodedQuery = encodeURIComponent(query);
-    // 使用HTML5 History API更新URL，不刷新页面
-    window.history.pushState(
-      { search: query },
-      `搜索: ${query} - LibreTV`,
-      `/s=${encodedQuery}`
-    );
-    // 更新页面标题
-    document.title = `搜索: ${query} - LibreTV`;
-  } catch (e) {
-    console.error("更新浏览器历史失败:", e);
-    // 如果更新URL失败，继续执行搜索
-  }
+  // 搜索完成时更新URL状态
+  updateSearchURL(query, "complete");
 
   // 处理搜索结果过滤：如果启用了黄色内容过滤，则过滤掉分类含有敏感内容的项目
   const yellowFilterEnabled =
