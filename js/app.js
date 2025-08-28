@@ -550,6 +550,10 @@ function setupPageLeaveHandlers() {
       window.currentSearchAbortController.abort();
       console.log("搜索已被取消（页面离开）");
     }
+    // 清除搜索状态
+    window.isSearchActive = false;
+    window.currentSearchId = null;
+    window.currentSearchQuery = null;
   });
 
   // 监听页面隐藏事件（切换到其他标签页）
@@ -558,6 +562,10 @@ function setupPageLeaveHandlers() {
       // 页面隐藏时取消搜索，节省资源
       window.currentSearchAbortController.abort();
       console.log("搜索已被取消（页面隐藏）");
+      // 清除搜索状态
+      window.isSearchActive = false;
+      window.currentSearchId = null;
+      window.currentSearchQuery = null;
     }
   });
 }
@@ -640,6 +648,11 @@ function resetSearchArea() {
     console.log("搜索已被取消（重置搜索区域）");
   }
 
+  // 清除搜索状态
+  window.isSearchActive = false;
+  window.currentSearchId = null;
+  window.currentSearchQuery = null;
+
   // 隐藏加载动画
   hideLoading();
 
@@ -687,6 +700,12 @@ async function search() {
   // 生成当前搜索的唯一标识，用于防止延迟结果覆盖新搜索
   const currentSearchId = Date.now();
   window.currentSearchId = currentSearchId;
+
+  // 设置全局搜索状态
+  window.currentSearchQuery = document
+    .getElementById("searchInput")
+    .value.trim();
+  window.isSearchActive = true;
 
   // 取消之前的搜索（如果存在）
   if (window.currentSearchAbortController) {
@@ -798,6 +817,11 @@ function clearSearchInput() {
     window.currentSearchAbortController.abort();
     console.log("搜索已被取消（清空搜索框）");
   }
+
+  // 清除搜索状态
+  window.isSearchActive = false;
+  window.currentSearchId = null;
+  window.currentSearchQuery = null;
 
   // 隐藏加载动画
   hideLoading();
@@ -1441,12 +1465,24 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     return;
   }
 
-  // 检查是否是当前搜索的结果，防止延迟结果覆盖新搜索
+  // 检查搜索状态是否有效
+  if (!window.isSearchActive) {
+    console.log("忽略非活跃搜索的结果");
+    return;
+  }
+
+  // 检查搜索ID是否匹配
   if (
     window.currentSearchId &&
     window.currentSearchId !== window.currentSearchId
   ) {
-    console.log("忽略过期的搜索结果");
+    console.log("忽略过期的搜索结果（ID不匹配）");
+    return;
+  }
+
+  // 检查搜索关键词是否匹配
+  if (window.currentSearchQuery && window.currentSearchQuery !== query) {
+    console.log("忽略过期的搜索结果（关键词不匹配）");
     return;
   }
   // 显示结果区域
@@ -1642,6 +1678,26 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
 
 // 最终处理和显示结果
 function processAndDisplayFinalResults(allResults, query) {
+  // 检查搜索状态是否有效
+  if (!window.isSearchActive) {
+    console.log("忽略非活跃搜索的最终结果");
+    return;
+  }
+
+  // 检查搜索ID是否匹配
+  if (
+    window.currentSearchId &&
+    window.currentSearchId !== window.currentSearchId
+  ) {
+    console.log("忽略过期的最终结果（ID不匹配）");
+    return;
+  }
+
+  // 检查搜索关键词是否匹配
+  if (window.currentSearchQuery && window.currentSearchQuery !== query) {
+    console.log("忽略过期的最终结果（关键词不匹配）");
+    return;
+  }
   // 智能相关性排序和过滤：只显示相关结果
   const searchQuery = query.toLowerCase();
 
