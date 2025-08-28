@@ -15,13 +15,21 @@ function goBack(event) {
   // 防止默认链接行为
   if (event) event.preventDefault();
 
+  // 添加调试信息
+  console.log("player.js - goBack 被调用");
+  console.log("player.js - 当前URL:", window.location.href);
+
   // 1. 优先检查URL参数中的returnUrl
   const urlParams = new URLSearchParams(window.location.search);
   const returnUrl = urlParams.get("returnUrl");
 
+  console.log("player.js - returnUrl参数:", returnUrl);
+
   if (returnUrl) {
     // 如果URL中有returnUrl参数，优先使用
-    window.location.href = decodeURIComponent(returnUrl);
+    const decodedReturnUrl = decodeURIComponent(returnUrl);
+    console.log("player.js - 使用returnUrl参数跳转到:", decodedReturnUrl);
+    window.location.href = decodedReturnUrl;
     return;
   }
 
