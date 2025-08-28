@@ -85,23 +85,40 @@ function checkURLForSearchState() {
       showSearchingState(query);
     } else {
       // 检查是否有缓存结果
-      const cachedData = localStorage.getItem(`searchResults_${query}`);
+      const cacheKey = `searchResults_${query}`;
+      console.log("查找缓存键:", cacheKey);
+
+      const cachedData = localStorage.getItem(cacheKey);
+      console.log("缓存数据:", cachedData ? "存在" : "不存在");
+
       if (cachedData) {
         try {
           const parsedData = JSON.parse(cachedData);
+          console.log("解析的缓存数据:", parsedData);
+
           // 检查缓存是否过期（30分钟）
           const cacheAge = Date.now() - parsedData.timestamp;
+          console.log(
+            "缓存年龄:",
+            cacheAge,
+            "ms, 过期时间:",
+            30 * 60 * 1000,
+            "ms"
+          );
+
           if (cacheAge < 30 * 60 * 1000) {
             // 缓存有效，直接显示
+            console.log("缓存有效，直接显示结果");
             displayCachedResults(parsedData, query);
             return;
           } else {
             // 缓存过期，删除
-            localStorage.removeItem(`searchResults_${query}`);
+            console.log("缓存过期，删除");
+            localStorage.removeItem(cacheKey);
           }
         } catch (e) {
           console.error("解析缓存数据失败:", e);
-          localStorage.removeItem(`searchResults_${query}`);
+          localStorage.removeItem(cacheKey);
         }
       }
 
@@ -1774,16 +1791,17 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
   }
 
   // 缓存当前结果
-  localStorage.setItem(
-    `searchResults_${query}`,
-    JSON.stringify({
-      results: results,
-      timestamp: Date.now(),
-      isComplete: currentStage === totalStages,
-      currentStage: currentStage,
-      totalStages: totalStages,
-    })
-  );
+  const cacheKey = `searchResults_${query}`;
+  const cacheData = {
+    results: results,
+    timestamp: Date.now(),
+    isComplete: currentStage === totalStages,
+    currentStage: currentStage,
+    totalStages: totalStages,
+  };
+
+  console.log("保存缓存:", cacheKey, cacheData);
+  localStorage.setItem(cacheKey, JSON.stringify(cacheData));
   // 显示结果区域
   document.getElementById("searchArea").classList.remove("flex-1");
   document.getElementById("searchArea").classList.add("mb-8");
@@ -2163,6 +2181,19 @@ function processAndDisplayFinalResults(allResults, query) {
       progress: "完成", // 显示搜索完成状态
     })
   );
+
+  // 保存搜索结果缓存，用于返回时直接显示
+  const cacheKey = `searchResults_${query}`;
+  const cacheData = {
+    results: allResults,
+    timestamp: Date.now(),
+    isComplete: true,
+    currentStage: 999, // 表示已完成
+    totalStages: 999,
+  };
+
+  console.log("保存最终缓存:", cacheKey, cacheData);
+  localStorage.setItem(cacheKey, JSON.stringify(cacheData));
 
   // 更新搜索结果计数
   const searchResultsCount = document.getElementById("searchResultsCount");
