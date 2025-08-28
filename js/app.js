@@ -107,17 +107,18 @@ function checkURLForSearchState() {
           const parsedData = JSON.parse(cachedData);
           console.log("解析的缓存数据:", parsedData);
 
-          // 检查缓存是否过期（30分钟）
+          // 检查缓存是否过期（2小时）
           const cacheAge = Date.now() - parsedData.timestamp;
+          const cacheExpirationTime = 2 * 60 * 60 * 1000; // 2小时
           console.log(
             "缓存年龄:",
             cacheAge,
             "ms, 过期时间:",
-            30 * 60 * 1000,
+            cacheExpirationTime,
             "ms"
           );
 
-          if (cacheAge < 30 * 60 * 1000) {
+          if (cacheAge < cacheExpirationTime) {
             // 缓存有效，直接显示
             console.log("缓存有效，直接显示结果");
             displayCachedResults(parsedData, query);
@@ -1547,9 +1548,26 @@ function updateSearchURL(query, status) {
 function displayCachedResults(cachedData, query) {
   console.log("显示缓存的搜索结果:", query);
 
-  // 设置搜索状态
-  window.isSearchActive = false;
+  // 恢复搜索状态
   window.currentSearchQuery = query;
+
+  // 如果缓存显示搜索未完成，恢复搜索状态
+  if (
+    !cachedData.isComplete &&
+    cachedData.remainingAPIs &&
+    cachedData.remainingAPIs.length > 0
+  ) {
+    console.log("恢复未完成的搜索状态");
+    window.isSearchActive = true;
+    window.currentSearchId = cachedData.searchId || Date.now();
+
+    // 继续搜索剩余的API
+    continueSearchFromCache(cachedData, query);
+    return;
+  } else {
+    // 搜索已完成，设置状态为非活跃
+    window.isSearchActive = false;
+  }
 
   // 更新搜索框
   document.getElementById("searchInput").value = query;
@@ -1763,6 +1781,60 @@ function displayCachedResults(cachedData, query) {
   updateSearchURL(query, cachedData.isComplete ? "complete" : "partial");
 }
 
+// 从缓存继续搜索
+async function continueSearchFromCache(cachedData, query) {
+  console.log("从缓存继续搜索:", query);
+
+  // 显示当前缓存的结果
+  displayProgressiveResults(
+    cachedData.results,
+    cachedData.currentStage,
+    cachedData.totalStages,
+    query
+  );
+
+  // 继续搜索剩余的API
+  const remainingAPIs = cachedData.remainingAPIs || [];
+  let allResults = [...cachedData.results];
+
+  for (let i = 0; i < remainingAPIs.length; i++) {
+    // 检查搜索是否被取消
+    if (
+      window.currentSearchAbortController &&
+      window.currentSearchAbortController.signal.aborted
+    ) {
+      console.log("搜索已被取消");
+      return;
+    }
+
+    const apiId = remainingAPIs[i];
+    const results = await searchByAPIAndKeyWord(apiId, query);
+
+    // 再次检查搜索是否被取消
+    if (
+      window.currentSearchAbortController &&
+      window.currentSearchAbortController.signal.aborted
+    ) {
+      console.log("搜索已被取消");
+      return;
+    }
+
+    if (Array.isArray(results) && results.length > 0) {
+      allResults = allResults.concat(results);
+    }
+
+    // 更新进度
+    const currentStage = cachedData.currentStage + i + 1;
+    const totalStages = cachedData.totalStages;
+
+    // 显示当前进度
+    displayProgressiveResults(allResults, currentStage, totalStages, query);
+  }
+
+  // 最终处理和显示
+  processAndDisplayFinalResults(allResults, query);
+}
+
 // 显示搜索中状态
 function showSearchingState(query) {
   console.log("显示搜索中状态:", query);
@@ -1833,7 +1905,7 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     updateSearchURL(query, "partial");
   }
 
-  // 缓存当前结果
+  // 缓存当前结果和搜索状态
   const cacheKey = `searchResults_${query}`;
   const cacheData = {
     results: results,
@@ -1841,6 +1913,13 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     isComplete: currentStage === totalStages,
     currentStage: currentStage,
     totalStages: totalStages,
+    // 保存搜索状态信息
+    searchId: window.currentSearchId,
+    searchQuery: query,
+    isSearchActive: window.isSearchActive,
+    // 保存已完成的API列表
+    completedAPIs: selectedAPIs.slice(0, currentStage),
+    remainingAPIs: selectedAPIs.slice(currentStage),
   };
 
   console.log("保存缓存:", cacheKey, cacheData);
