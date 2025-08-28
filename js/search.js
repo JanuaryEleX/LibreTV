@@ -33,11 +33,6 @@ async function searchByAPIAndKeyWord(apiId, query) {
       apiName = API_SITES[apiId].name;
     }
 
-    // 添加URL构建调试信息
-    console.log(`[DEBUG] API ${apiId} 基础URL:`, apiBaseUrl);
-    console.log(`[DEBUG] API ${apiId} 完整请求URL:`, apiUrl);
-    console.log(`[DEBUG] API ${apiId} 搜索关键词:`, query);
-
     // 添加超时处理
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -57,25 +52,10 @@ async function searchByAPIAndKeyWord(apiId, query) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.warn(
-        `[DEBUG] API ${apiId} 请求失败:`,
-        response.status,
-        response.statusText
-      );
       return [];
     }
 
     const data = await response.json();
-
-    // 添加响应数据调试信息
-    console.log(`[DEBUG] API ${apiId} 响应状态:`, response.status);
-    console.log(`[DEBUG] API ${apiId} 响应数据结构:`, {
-      hasData: !!data,
-      hasList: !!(data && data.list),
-      isArray: !!(data && data.list && Array.isArray(data.list)),
-      listLength: data && data.list ? data.list.length : 0,
-      pageCount: data && data.pagecount ? data.pagecount : 1,
-    });
 
     if (
       !data ||
@@ -83,7 +63,6 @@ async function searchByAPIAndKeyWord(apiId, query) {
       !Array.isArray(data.list) ||
       data.list.length === 0
     ) {
-      console.warn(`[DEBUG] API ${apiId} 响应数据无效或为空:`, data);
       return [];
     }
 
@@ -103,11 +82,6 @@ async function searchByAPIAndKeyWord(apiId, query) {
     // 限制最大获取页数，避免获取过多无关内容
     const maxPagesToFetch = 1; // 每个API源最多获取1页，避免超时
     const pagesToFetch = Math.min(pageCount - 1, maxPagesToFetch - 1);
-
-    // 添加调试信息
-    console.log(`[DEBUG] API ${apiId} 第一页结果数量:`, results.length);
-    console.log(`[DEBUG] API ${apiId} 总页数:`, pageCount);
-    console.log(`[DEBUG] API ${apiId} 将获取额外页数:`, pagesToFetch);
 
     // 如果有额外页数，获取更多页的结果
     if (pagesToFetch > 0) {
@@ -148,7 +122,6 @@ async function searchByAPIAndKeyWord(apiId, query) {
           try {
             const pageController = new AbortController();
             const pageTimeoutId = setTimeout(() => {
-              console.warn(`[DEBUG] API ${apiId} 第${page}页请求超时 (15秒)`);
               pageController.abort();
             }, 15000);
 
@@ -167,21 +140,12 @@ async function searchByAPIAndKeyWord(apiId, query) {
             clearTimeout(pageTimeoutId);
 
             if (!pageResponse.ok) {
-              console.warn(
-                `[DEBUG] API ${apiId} 第${page}页请求失败:`,
-                pageResponse.status,
-                pageResponse.statusText
-              );
               return [];
             }
 
             const pageData = await pageResponse.json();
 
             if (!pageData || !pageData.list || !Array.isArray(pageData.list)) {
-              console.warn(
-                `[DEBUG] API ${apiId} 第${page}页响应数据无效:`,
-                pageData
-              );
               return [];
             }
 
@@ -195,13 +159,8 @@ async function searchByAPIAndKeyWord(apiId, query) {
                 : undefined,
             }));
 
-            console.log(
-              `[DEBUG] API ${apiId} 第${page}页结果数量:`,
-              pageResults.length
-            );
             return pageResults;
           } catch (error) {
-            console.warn(`API ${apiId} 第${page}页搜索失败:`, error);
             return [];
           }
         })();
@@ -220,22 +179,10 @@ async function searchByAPIAndKeyWord(apiId, query) {
           totalAdditionalResults += pageResults.length;
         }
       });
-
-      console.log(
-        `[DEBUG] API ${apiId} 额外页结果总数:`,
-        totalAdditionalResults
-      );
     }
-
-    // 添加最终调试信息
-    console.log(`[DEBUG] API ${apiId} 最终结果总数:`, results.length);
-    console.log(
-      `[DEBUG] API ${apiId} 搜索完成 - 成功获取 ${results.length} 个结果`
-    );
 
     return results;
   } catch (error) {
-    console.warn(`API ${apiId} 搜索失败:`, error);
     return [];
   }
 }
