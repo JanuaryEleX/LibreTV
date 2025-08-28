@@ -79,38 +79,38 @@ function checkURLForSearchState() {
     const query = decodeURIComponent(path.substring(3));
     const state = history.state;
 
+    // 优先检查缓存结果（无论state状态如何）
+    const cacheKey = `searchResults_${query}`;
+    const cachedData = localStorage.getItem(cacheKey);
+
+    if (cachedData) {
+      try {
+        const parsedData = JSON.parse(cachedData);
+
+        // 检查缓存是否过期（2小时）
+        const cacheAge = Date.now() - parsedData.timestamp;
+        const cacheExpirationTime = 2 * 60 * 60 * 1000; // 2小时
+
+        if (cacheAge < cacheExpirationTime) {
+          // 缓存有效，直接显示
+          displayCachedResults(parsedData, query);
+          return;
+        } else {
+          // 缓存过期，删除
+          localStorage.removeItem(cacheKey);
+        }
+      } catch (e) {
+        console.error("解析缓存数据失败:", e);
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
+    // 如果没有有效缓存，再检查state状态
     if (state && state.status === "searching") {
       // 正在搜索状态，显示搜索中界面
       showSearchingState(query);
     } else {
-      // 检查是否有缓存结果
-      const cacheKey = `searchResults_${query}`;
-
-      const cachedData = localStorage.getItem(cacheKey);
-
-      if (cachedData) {
-        try {
-          const parsedData = JSON.parse(cachedData);
-
-          // 检查缓存是否过期（2小时）
-          const cacheAge = Date.now() - parsedData.timestamp;
-          const cacheExpirationTime = 2 * 60 * 60 * 1000; // 2小时
-
-          if (cacheAge < cacheExpirationTime) {
-            // 缓存有效，直接显示
-            displayCachedResults(parsedData, query);
-            return;
-          } else {
-            // 缓存过期，删除
-            localStorage.removeItem(cacheKey);
-          }
-        } catch (e) {
-          console.error("解析缓存数据失败:", e);
-          localStorage.removeItem(cacheKey);
-        }
-      }
-
-      // 没有有效缓存，重新搜索
+      // 没有缓存也没有搜索状态，重新搜索
       document.getElementById("searchInput").value = query;
       search();
     }
