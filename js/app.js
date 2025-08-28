@@ -844,6 +844,17 @@ async function search() {
       return cleanItem;
     });
 
+    // 保存前15个最匹配的源用于快速切换
+    const topSources = allResults.slice(0, 15);
+    localStorage.setItem(
+      "quickSwitchSources",
+      JSON.stringify({
+        query: query,
+        sources: topSources,
+        timestamp: Date.now(),
+      })
+    );
+
     // 更新搜索结果计数
     const searchResultsCount = document.getElementById("searchResultsCount");
     if (searchResultsCount) {

@@ -1749,48 +1749,166 @@ async function showSwitchResourceModal() {
     '<div style="text-align:center;padding:20px;color:#aaa;grid-column:1/-1;">正在加载资源列表...</div>';
   modal.classList.remove("hidden");
 
-  // 搜索
-  const resourceOptions = selectedAPIs.map((curr) => {
-    if (API_SITES[curr]) {
-      return { key: curr, name: API_SITES[curr].name };
-    }
-    const customIndex = parseInt(curr.replace("custom_", ""), 10);
-    if (customAPIs[customIndex]) {
-      return { key: curr, name: customAPIs[customIndex].name || "自定义资源" };
-    }
-    return { key: curr, name: "未知资源" };
-  });
-  let allResults = {};
-  await Promise.all(
-    resourceOptions.map(async (opt) => {
-      let queryResult = await searchByAPIAndKeyWord(opt.key, currentVideoTitle);
-      if (queryResult.length == 0) {
-        return;
-      }
-      // 优先取完全同名资源，否则默认取第一个
-      let result = queryResult[0];
-      queryResult.forEach((res) => {
-        if (res.vod_name == currentVideoTitle) {
-          result = res;
-        }
-      });
-      allResults[opt.key] = result;
-    })
+  // 从localStorage获取保存的快速切换源列表
+  const quickSwitchData = JSON.parse(
+    localStorage.getItem("quickSwitchSources") || "{}"
   );
+  let allResults = {};
+
+  // 检查是否有保存的源列表且查询匹配
+  if (
+    quickSwitchData.sources &&
+    quickSwitchData.query &&
+    (quickSwitchData.query.toLowerCase() === currentVideoTitle.toLowerCase() ||
+      currentVideoTitle
+        .toLowerCase()
+        .includes(quickSwitchData.query.toLowerCase()) ||
+      quickSwitchData.query
+        .toLowerCase()
+        .includes(currentVideoTitle.toLowerCase()))
+  ) {
+    // 使用保存的源列表，按source_code分组
+    quickSwitchData.sources.forEach((source) => {
+      const sourceKey = source.source_code;
+      if (sourceKey) {
+        allResults[sourceKey] = source;
+      }
+    });
+
+    console.log(
+      "使用保存的快速切换源列表，共",
+      Object.keys(allResults).length,
+      "个源"
+    );
+  } else {
+    // 如果没有保存的源列表或查询不匹配，回退到原来的搜索逻辑
+    console.log("未找到匹配的快速切换源列表，使用搜索逻辑");
+    const resourceOptions = selectedAPIs.map((curr) => {
+      if (API_SITES[curr]) {
+        return { key: curr, name: API_SITES[curr].name };
+      }
+      const customIndex = parseInt(curr.replace("custom_", ""), 10);
+      if (customAPIs[customIndex]) {
+        return {
+          key: curr,
+          name: customAPIs[customIndex].name || "自定义资源",
+        };
+      }
+      return { key: curr, name: "未知资源" };
+    });
+
+    await Promise.all(
+      resourceOptions.map(async (opt) => {
+        let queryResult = await searchByAPIAndKeyWord(
+          opt.key,
+          currentVideoTitle
+        );
+        if (queryResult.length == 0) {
+          return;
+        }
+        // 优先取完全同名资源，否则默认取第一个
+        let result = queryResult[0];
+        queryResult.forEach((res) => {
+          if (res.vod_name == currentVideoTitle) {
+            result = res;
+          }
+        });
+        allResults[opt.key] = result;
+      })
+    );
+  }
 
   // 更新状态显示：开始速率测试
   modalContent.innerHTML =
     '<div style="text-align:center;padding:20px;color:#aaa;grid-column:1/-1;">正在测试各资源速率...</div>';
 
-  // 同时测试所有资源的速率
+  // 优化测速：只对前8个源进行详细测速，其他源使用快速检测
   const speedResults = {};
-  await Promise.all(
-    Object.entries(allResults).map(async ([sourceKey, result]) => {
+  const allEntries = Object.entries(allResults);
+  const maxDetailedTests = 8; // 最多详细测速8个源
+
+  // 先对所有源进行快速API响应测试
+  const quickTests = await Promise.all(
+    allEntries.map(async ([sourceKey, result]) => {
       if (result) {
-        speedResults[sourceKey] = await testVideoSourceSpeed(
-          sourceKey,
+        try {
+          const startTime = performance.now();
+          // 只测试API响应，不测试视频链接
+          let apiParams = "";
+          if (sourceKey.startsWith("custom_")) {
+            const customIndex = sourceKey.replace("custom_", "");
+            const customApi = getCustomApiInfo(customIndex);
+            if (!customApi)
+              return { sourceKey, speed: -1, error: "API配置无效" };
+            apiParams =
+              "&customApi=" +
+              encodeURIComponent(customApi.url) +
+              "&source=custom";
+          } else {
+            apiParams = "&source=" + sourceKey;
+          }
+
+          const response = await fetch(
+            `/api/detail?id=${encodeURIComponent(
+              result.vod_id
+            )}${apiParams}&_t=${Date.now()}`,
+            {
+              method: "GET",
+              cache: "no-cache",
+              signal: AbortSignal.timeout(3000), // 3秒超时
+            }
+          );
+
+          if (!response.ok) {
+            return { sourceKey, speed: -1, error: "API响应失败" };
+          }
+
+          const data = await response.json();
+          const apiTime = performance.now() - startTime;
+
+          return {
+            sourceKey,
+            speed: Math.round(apiTime),
+            episodes: data.episodes?.length || 0,
+            error: null,
+          };
+        } catch (error) {
+          return { sourceKey, speed: -1, error: "快速测试失败" };
+        }
+      }
+      return { sourceKey: "", speed: -1, error: "无效源" };
+    })
+  );
+
+  // 将快速测试结果转换为speedResults格式
+  quickTests.forEach((test) => {
+    if (test.sourceKey) {
+      speedResults[test.sourceKey] = {
+        speed: test.speed,
+        episodes: test.episodes,
+        error: test.error,
+        note: test.speed > 0 ? "快速测试" : null,
+      };
+    }
+  });
+
+  // 对前几个最快的源进行详细测速（包括视频链接测试）
+  const sortedBySpeed = quickTests
+    .filter((test) => test.speed > 0)
+    .sort((a, b) => a.speed - b.speed)
+    .slice(0, maxDetailedTests);
+
+  console.log("对前", sortedBySpeed.length, "个最快源进行详细测速");
+
+  await Promise.all(
+    sortedBySpeed.map(async (test) => {
+      const result = allResults[test.sourceKey];
+      if (result) {
+        const detailedResult = await testVideoSourceSpeed(
+          test.sourceKey,
           result.vod_id
         );
+        speedResults[test.sourceKey] = detailedResult;
       }
     })
   );
@@ -1832,8 +1950,18 @@ async function showSwitchResourceModal() {
     const isCurrentSource =
       String(sourceKey) === String(currentSourceCode) &&
       String(result.vod_id) === String(currentVideoId);
-    const sourceName =
-      resourceOptions.find((opt) => opt.key === sourceKey)?.name || "未知资源";
+    // 获取源名称，优先使用保存的source_name，否则从API_SITES或customAPIs中查找
+    let sourceName = result.source_name || "未知资源";
+    if (!result.source_name) {
+      if (API_SITES[sourceKey]) {
+        sourceName = API_SITES[sourceKey].name;
+      } else if (sourceKey.startsWith("custom_")) {
+        const customIndex = parseInt(sourceKey.replace("custom_", ""), 10);
+        if (customAPIs[customIndex]) {
+          sourceName = customAPIs[customIndex].name || "自定义资源";
+        }
+      }
+    }
     const speedResult = speedResults[sourceKey] || {
       speed: -1,
       error: "未测试",
