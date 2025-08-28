@@ -693,96 +693,30 @@ async function search() {
     // 保存搜索历史
     saveSearchHistory(query);
 
-    // 将API源分为三类：快速、中等、慢速
-    // 优化分组逻辑，确保渐进式效果更明显
+    // 简化的渐进式搜索：逐个处理API，每处理完一个就显示结果
+    let allResults = [];
     const totalAPIs = selectedAPIs.length;
 
-    // 第一阶段：前1-2个API（快速响应）
-    const fastAPIs = selectedAPIs.slice(0, Math.min(2, totalAPIs));
+    // 逐个处理API，实现真正的渐进式效果
+    for (let i = 0; i < selectedAPIs.length; i++) {
+      const apiId = selectedAPIs[i];
+      const results = await searchByAPIAndKeyWord(apiId, query);
 
-    // 第二阶段：接下来的API（中等速度）
-    const mediumAPIs = selectedAPIs.slice(
-      Math.min(2, totalAPIs),
-      Math.min(4, totalAPIs)
-    );
-
-    // 第三阶段：剩余的API（慢速）
-    const slowAPIs = selectedAPIs.slice(Math.min(4, totalAPIs));
-
-    let allResults = [];
-
-    // 第一阶段：快速API（1-2秒内显示）
-    if (fastAPIs.length > 0) {
-      const fastResults = await Promise.all(
-        fastAPIs.map((apiId) => searchByAPIAndKeyWord(apiId, query))
-      );
-
-      fastResults.forEach((results) => {
-        if (Array.isArray(results) && results.length > 0) {
-          allResults = allResults.concat(results);
-        }
-      });
-
-      // 显示第一阶段结果并隐藏加载动画
-      hideLoading(); // 隐藏加载动画
-      if (allResults.length > 0) {
-        displayProgressiveResults(allResults, 1, 3, query);
-      } else {
-        // 第一阶段没有结果，但可能后续阶段有结果，显示搜索中状态
-        displayProgressiveResults([], 1, 3, query, true); // 添加参数表示正在搜索更多
+      if (Array.isArray(results) && results.length > 0) {
+        allResults = allResults.concat(results);
       }
-    }
 
-    // 第二阶段：中等API（细分显示）
-    if (mediumAPIs.length > 0) {
-      // 逐个处理中等API，让用户看到更细粒度的进度
-      for (let i = 0; i < mediumAPIs.length; i++) {
-        const apiId = mediumAPIs[i];
-        const results = await searchByAPIAndKeyWord(apiId, query);
+      // 每处理完一个API就更新显示
+      const currentStage = i + 1;
+      const totalStages = totalAPIs;
 
-        if (Array.isArray(results) && results.length > 0) {
-          allResults = allResults.concat(results);
-        }
-
-        // 每处理完一个API就更新显示
-        const currentSubStage = i + 1;
-        const totalSubStages = mediumAPIs.length;
-        displayProgressiveResults(
-          allResults,
-          2,
-          3,
-          query,
-          false,
-          currentSubStage,
-          totalSubStages
-        );
+      // 第一个API完成后隐藏加载动画
+      if (currentStage === 1) {
+        hideLoading();
       }
-    }
 
-    // 第三阶段：慢速API（细分显示）
-    if (slowAPIs.length > 0) {
-      // 逐个处理慢速API，让用户看到更细粒度的进度
-      for (let i = 0; i < slowAPIs.length; i++) {
-        const apiId = slowAPIs[i];
-        const results = await searchByAPIAndKeyWord(apiId, query);
-
-        if (Array.isArray(results) && results.length > 0) {
-          allResults = allResults.concat(results);
-        }
-
-        // 每处理完一个API就更新显示
-        const currentSubStage = i + 1;
-        const totalSubStages = slowAPIs.length;
-        displayProgressiveResults(
-          allResults,
-          3,
-          3,
-          query,
-          false,
-          currentSubStage,
-          totalSubStages
-        );
-      }
+      // 显示当前进度
+      displayProgressiveResults(allResults, currentStage, totalStages, query);
     }
 
     // 最终处理和显示
@@ -1436,15 +1370,7 @@ function saveStringAsFile(content, fileName) {
 // 移除Node.js的require语句，因为这是在浏览器环境中运行的
 
 // 渐进式显示搜索结果
-function displayProgressiveResults(
-  results,
-  currentStage,
-  totalStages,
-  query,
-  searchingMore = false,
-  currentSubStage = 0,
-  totalSubStages = 0
-) {
+function displayProgressiveResults(results, currentStage, totalStages, query) {
   // 检查是否是当前搜索的结果，防止延迟结果覆盖新搜索
   if (
     window.currentSearchId &&
@@ -1468,15 +1394,15 @@ function displayProgressiveResults(
 
   // 如果没有结果
   if (!results || results.length === 0) {
-    if (searchingMore) {
-      // 正在搜索更多结果，显示搜索中状态
+    // 如果还在搜索中，显示搜索状态
+    if (currentStage < totalStages) {
       resultsDiv.innerHTML = `
         <div class="col-span-full text-center py-16">
           <div class="flex items-center justify-center gap-2 mb-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
             <span class="text-lg font-medium text-gray-400">正在搜索更多结果...</span>
           </div>
-          <p class="text-sm text-gray-500">第一阶段未找到结果，正在搜索其他数据源</p>
+          <p class="text-sm text-gray-500">已搜索 ${currentStage}/${totalStages} 个数据源，正在继续搜索</p>
         </div>
       `;
     } else {
@@ -1627,23 +1553,12 @@ function displayProgressiveResults(
   // 添加进度提示
   let progressText = "";
   if (currentStage < totalStages) {
-    if (currentSubStage > 0 && totalSubStages > 0) {
-      // 显示子阶段进度
-      progressText = `<div class="col-span-full text-center py-4 text-sm text-gray-400">
-         <div class="flex items-center justify-center gap-2">
-           <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-           <span>正在搜索更多结果... (第${currentStage}阶段: ${currentSubStage}/${totalSubStages})</span>
-         </div>
-       </div>`;
-    } else {
-      // 显示主阶段进度
-      progressText = `<div class="col-span-full text-center py-4 text-sm text-gray-400">
-         <div class="flex items-center justify-center gap-2">
-           <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-           <span>正在搜索更多结果... (${currentStage}/${totalStages})</span>
-         </div>
-       </div>`;
-    }
+    progressText = `<div class="col-span-full text-center py-4 text-sm text-gray-400">
+       <div class="flex items-center justify-center gap-2">
+         <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+         <span>正在搜索更多结果... (${currentStage}/${totalStages})</span>
+       </div>
+     </div>`;
   }
 
   resultsDiv.innerHTML = safeResults + progressText;
