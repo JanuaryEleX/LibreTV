@@ -1567,6 +1567,9 @@ function displayCachedResults(cachedData, query) {
   } else {
     // 搜索已完成，设置状态为非活跃
     window.isSearchActive = false;
+
+    // 如果搜索已完成，直接显示最终结果，不再进行后台搜索
+    console.log("搜索已完成，直接显示累积缓存结果，不进行后台搜索");
   }
 
   // 更新搜索框
@@ -1605,6 +1608,12 @@ function displayCachedResults(cachedData, query) {
   if (cachedData.isComplete) {
     // 搜索已完成，直接显示最终结果
     const resultsDiv = document.getElementById("results");
+
+    // 确保加载动画已隐藏
+    const loading = document.getElementById("loading");
+    if (loading) {
+      loading.style.display = "none";
+    }
 
     // 处理搜索结果过滤
     let filteredResults = cachedData.results;
@@ -1769,6 +1778,12 @@ function displayCachedResults(cachedData, query) {
     }
   } else {
     // 搜索未完成，显示当前进度
+    // 确保加载动画已隐藏
+    const loading = document.getElementById("loading");
+    if (loading) {
+      loading.style.display = "none";
+    }
+
     displayProgressiveResults(
       cachedData.results,
       cachedData.currentStage,
@@ -1784,6 +1799,12 @@ function displayCachedResults(cachedData, query) {
 // 从缓存继续搜索
 async function continueSearchFromCache(cachedData, query) {
   console.log("从缓存继续搜索:", query);
+
+  // 确保加载动画已隐藏
+  const loading = document.getElementById("loading");
+  if (loading) {
+    loading.style.display = "none";
+  }
 
   // 显示当前缓存的结果
   displayProgressiveResults(
@@ -1820,7 +1841,12 @@ async function continueSearchFromCache(cachedData, query) {
     }
 
     if (Array.isArray(results) && results.length > 0) {
-      allResults = allResults.concat(results);
+      // 避免重复结果
+      const existingIds = new Set(allResults.map((item) => item.vod_id));
+      const newResults = results.filter(
+        (item) => !existingIds.has(item.vod_id)
+      );
+      allResults = [...allResults, ...newResults];
     }
 
     // 更新进度
@@ -1907,8 +1933,35 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
 
   // 缓存当前结果和搜索状态
   const cacheKey = `searchResults_${query}`;
+
+  // 获取现有缓存，用于累积结果
+  let existingCache = null;
+  try {
+    const existingData = localStorage.getItem(cacheKey);
+    if (existingData) {
+      existingCache = JSON.parse(existingData);
+    }
+  } catch (e) {
+    console.error("解析现有缓存失败:", e);
+  }
+
+  // 累积结果：合并现有缓存和当前结果
+  let accumulatedResults = results;
+  if (
+    existingCache &&
+    existingCache.results &&
+    Array.isArray(existingCache.results)
+  ) {
+    // 合并结果，避免重复
+    const existingIds = new Set(
+      existingCache.results.map((item) => item.vod_id)
+    );
+    const newResults = results.filter((item) => !existingIds.has(item.vod_id));
+    accumulatedResults = [...existingCache.results, ...newResults];
+  }
+
   const cacheData = {
-    results: results,
+    results: accumulatedResults, // 使用累积的结果
     timestamp: Date.now(),
     isComplete: currentStage === totalStages,
     currentStage: currentStage,
@@ -1920,10 +1973,21 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     // 保存已完成的API列表
     completedAPIs: selectedAPIs.slice(0, currentStage),
     remainingAPIs: selectedAPIs.slice(currentStage),
+    // 保存累积信息
+    accumulatedCount: accumulatedResults.length,
+    lastUpdateStage: currentStage,
   };
 
-  console.log("保存缓存:", cacheKey, cacheData);
-  localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  // 只有在搜索活跃时才更新缓存，避免缓存冲突
+  if (window.isSearchActive) {
+    console.log("保存累积缓存:", cacheKey, {
+      ...cacheData,
+      results: `[${cacheData.results.length} 个结果]`, // 简化日志输出
+    });
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  } else {
+    console.log("搜索非活跃，跳过缓存更新");
+  }
   // 显示结果区域
   document.getElementById("searchArea").classList.remove("flex-1");
   document.getElementById("searchArea").classList.add("mb-8");
@@ -2314,8 +2378,13 @@ function processAndDisplayFinalResults(allResults, query) {
     totalStages: 999,
   };
 
-  console.log("保存最终缓存:", cacheKey, cacheData);
-  localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  // 只有在搜索活跃时才更新缓存
+  if (window.isSearchActive) {
+    console.log("保存最终缓存:", cacheKey, cacheData);
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  } else {
+    console.log("搜索非活跃，跳过最终缓存更新");
+  }
 
   // 更新搜索结果计数
   const searchResultsCount = document.getElementById("searchResultsCount");
