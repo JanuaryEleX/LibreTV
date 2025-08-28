@@ -703,89 +703,145 @@ async function search() {
       }
     });
 
-    // 智能相关性排序：按搜索关键词匹配度排序
+    // 智能相关性排序和过滤：只显示相关结果
     const searchQuery = query.toLowerCase();
-    allResults.sort((a, b) => {
-      const aName = (a.vod_name || "").toLowerCase();
-      const bName = (b.vod_name || "").toLowerCase();
-      const aRemarks = (a.vod_remarks || "").toLowerCase();
-      const bRemarks = (b.vod_remarks || "").toLowerCase();
 
-      // 计算相关性分数
-      const getRelevanceScore = (title, remarks) => {
-        let score = 0;
+    // 计算相关性分数并过滤
+    const getRelevanceScore = (title, remarks) => {
+      let score = 0;
+      let relevanceLevel = 0; // 0=无关, 1=低相关, 2=中相关, 3=高相关
 
-        // 标题完全匹配 +200分（最高优先级）
-        if (title === searchQuery) {
-          score += 200;
-          return score; // 完全匹配直接返回最高分
+      // 标题完全匹配 +200分（最高优先级）
+      if (title === searchQuery) {
+        score += 200;
+        relevanceLevel = 3;
+        return { score, relevanceLevel }; // 完全匹配直接返回最高分
+      }
+
+      // 标题以搜索词开头 +100分
+      if (title.startsWith(searchQuery)) {
+        score += 100;
+        relevanceLevel = 3;
+      }
+
+      // 标题包含完整搜索词 +80分
+      if (title.includes(searchQuery)) {
+        score += 80;
+        relevanceLevel = Math.max(relevanceLevel, 2);
+      }
+
+      // 分词匹配（更精确的分词）
+      const queryWords = searchQuery
+        .split(/[\s,，、]+/)
+        .filter((w) => w.length > 1);
+      let matchedWords = 0;
+      let totalWords = queryWords.length;
+
+      queryWords.forEach((word) => {
+        if (title.includes(word)) {
+          matchedWords++;
+          // 根据匹配位置给分
+          if (title.indexOf(word) === 0) {
+            score += 30; // 开头匹配
+            relevanceLevel = Math.max(relevanceLevel, 2);
+          } else {
+            score += 15; // 中间匹配
+            relevanceLevel = Math.max(relevanceLevel, 1);
+          }
         }
+      });
 
-        // 标题以搜索词开头 +100分
-        if (title.startsWith(searchQuery)) {
-          score += 100;
+      // 如果所有词都匹配，额外加分
+      if (matchedWords === totalWords && totalWords > 0) {
+        score += 50;
+        relevanceLevel = Math.max(relevanceLevel, 2);
+      }
+
+      // 简介匹配（权重较低）
+      if (remarks.includes(searchQuery)) {
+        score += 10;
+        relevanceLevel = Math.max(relevanceLevel, 1);
+      }
+
+      queryWords.forEach((word) => {
+        if (remarks.includes(word)) {
+          score += 2;
+          relevanceLevel = Math.max(relevanceLevel, 1);
         }
+      });
 
-        // 标题包含完整搜索词 +80分
-        if (title.includes(searchQuery)) {
-          score += 80;
-        }
+      return { score, relevanceLevel };
+    };
 
-        // 分词匹配（更精确的分词）
+    // 过滤和评分
+    const scoredResults = allResults.map((item) => {
+      const aName = (item.vod_name || "").toLowerCase();
+      const aRemarks = (item.vod_remarks || "").toLowerCase();
+      const { score, relevanceLevel } = getRelevanceScore(aName, aRemarks);
+
+      return {
+        ...item,
+        relevanceScore: score,
+        relevanceLevel: relevanceLevel,
+      };
+    });
+
+    // 智能过滤：只保留相关结果
+    const relevantResults = scoredResults.filter((item) => {
+      // 保留高相关和中相关的结果
+      if (item.relevanceLevel >= 2) return true;
+
+      // 对于低相关结果，需要满足额外条件
+      if (item.relevanceLevel === 1) {
+        // 检查是否有足够的匹配词
         const queryWords = searchQuery
           .split(/[\s,，、]+/)
           .filter((w) => w.length > 1);
-        let matchedWords = 0;
-        let totalWords = queryWords.length;
+        const title = (item.vod_name || "").toLowerCase();
+        const remarks = (item.vod_remarks || "").toLowerCase();
 
-        queryWords.forEach((word) => {
-          if (title.includes(word)) {
-            matchedWords++;
-            // 根据匹配位置给分
-            if (title.indexOf(word) === 0) {
-              score += 30; // 开头匹配
-            } else {
-              score += 15; // 中间匹配
-            }
-          }
-        });
+        // 至少匹配50%的关键词，或者简介中有完整匹配
+        const matchedWords = queryWords.filter(
+          (word) => title.includes(word) || remarks.includes(word)
+        ).length;
 
-        // 如果所有词都匹配，额外加分
-        if (matchedWords === totalWords && totalWords > 0) {
-          score += 50;
-        }
-
-        // 简介匹配（权重较低）
-        if (remarks.includes(searchQuery)) {
-          score += 10;
-        }
-
-        queryWords.forEach((word) => {
-          if (remarks.includes(word)) {
-            score += 2;
-          }
-        });
-
-        return score;
-      };
-
-      const aScore = getRelevanceScore(aName, aRemarks);
-      const bScore = getRelevanceScore(bName, bRemarks);
-
-      // 按相关性分数降序排序（分数高的在前）
-      if (aScore !== bScore) {
-        return bScore - aScore;
+        return (
+          matchedWords >= Math.ceil(queryWords.length * 0.5) ||
+          remarks.includes(searchQuery)
+        );
       }
 
-      // 如果相关性分数相同，按标题长度排序（短的在前，通常更精确）
-      const aNameLength = aName.length;
-      const bNameLength = bName.length;
+      return false; // 过滤掉无关结果
+    });
+
+    // 按相关性分数排序
+    relevantResults.sort((a, b) => {
+      // 首先按相关性等级排序
+      if (a.relevanceLevel !== b.relevanceLevel) {
+        return b.relevanceLevel - a.relevanceLevel;
+      }
+
+      // 然后按分数排序
+      if (a.relevanceScore !== b.relevanceScore) {
+        return b.relevanceScore - a.relevanceScore;
+      }
+
+      // 如果分数相同，按标题长度排序（短的在前，通常更精确）
+      const aNameLength = (a.vod_name || "").length;
+      const bNameLength = (b.vod_name || "").length;
       if (aNameLength !== bNameLength) {
         return aNameLength - bNameLength;
       }
 
       // 如果标题长度也相同，按来源排序
       return (a.source_name || "").localeCompare(b.source_name || "");
+    });
+
+    // 更新allResults为过滤后的结果
+    allResults = relevantResults.map((item) => {
+      // 移除临时添加的评分字段
+      const { relevanceScore, relevanceLevel, ...cleanItem } = item;
+      return cleanItem;
     });
 
     // 更新搜索结果计数
