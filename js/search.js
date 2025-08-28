@@ -100,13 +100,14 @@ async function searchByAPIAndKeyWord(apiId, query) {
     // 获取总页数
     const pageCount = data.pagecount || 1;
 
+    // 限制最大获取页数，避免获取过多无关内容
+    const maxPagesToFetch = 1; // 每个API源最多获取1页，避免超时
+    const pagesToFetch = Math.min(pageCount - 1, maxPagesToFetch - 1);
+
     // 添加调试信息
     console.log(`[DEBUG] API ${apiId} 第一页结果数量:`, results.length);
     console.log(`[DEBUG] API ${apiId} 总页数:`, pageCount);
     console.log(`[DEBUG] API ${apiId} 将获取额外页数:`, pagesToFetch);
-    // 限制最大获取页数，避免获取过多无关内容
-    const maxPagesToFetch = 3; // 每个API源最多获取3页
-    const pagesToFetch = Math.min(pageCount - 1, maxPagesToFetch - 1);
 
     // 如果有额外页数，获取更多页的结果
     if (pagesToFetch > 0) {
@@ -146,10 +147,10 @@ async function searchByAPIAndKeyWord(apiId, query) {
         const pagePromise = (async () => {
           try {
             const pageController = new AbortController();
-            const pageTimeoutId = setTimeout(
-              () => pageController.abort(),
-              15000
-            );
+            const pageTimeoutId = setTimeout(() => {
+              console.warn(`[DEBUG] API ${apiId} 第${page}页请求超时 (15秒)`);
+              pageController.abort();
+            }, 15000);
 
             // 添加鉴权参数到代理URL
             const proxiedPageUrl = (await window.ProxyAuth?.addAuthToProxyUrl)
@@ -228,6 +229,9 @@ async function searchByAPIAndKeyWord(apiId, query) {
 
     // 添加最终调试信息
     console.log(`[DEBUG] API ${apiId} 最终结果总数:`, results.length);
+    console.log(
+      `[DEBUG] API ${apiId} 搜索完成 - 成功获取 ${results.length} 个结果`
+    );
 
     return results;
   } catch (error) {
