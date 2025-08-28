@@ -1067,10 +1067,8 @@ function playVideo(url, vod_name, sourceCode, episodeIndex = 0, vodId = "") {
     url
   )}&index=${episodeIndex}&title=${encodeURIComponent(vod_name || "")}`;
 
-  // 添加返回URL参数
-  if (currentPath.includes("index.html") || currentPath.endsWith("/")) {
-    watchUrl += `&back=${encodeURIComponent(currentPath)}`;
-  }
+  // 添加返回URL参数 - 总是传递当前页面作为返回目标
+  watchUrl += `&back=${encodeURIComponent(currentPath)}`;
 
   // 保存当前状态到localStorage
   try {
