@@ -1634,307 +1634,314 @@ function displayCachedResults(cachedData, query) {
     loading.style.display = "none";
   }
 
-  // 处理搜索结果过滤
-  let filteredResults = cachedData.results;
-  const yellowFilterEnabled =
-    localStorage.getItem("yellowFilterEnabled") === "true";
-  if (yellowFilterEnabled) {
-    const banned = [
-      "伦理片",
-      "福利",
-      "里番动漫",
-      "门事件",
-      "萝莉少女",
-      "制服诱惑",
-      "国产传媒",
-      "cosplay",
-      "黑丝诱惑",
-      "无码",
-      "日本无码",
-      "有码",
-      "日本有码",
-      "SWAG",
-      "网红主播",
-      "色情片",
-      "同性片",
-      "福利视频",
-      "福利片",
-    ];
-    filteredResults = filteredResults.filter((item) => {
-      const typeName = item.type_name || "";
-      return !banned.some((keyword) => typeName.includes(keyword));
-    });
-  }
-
-  // 对缓存结果应用智能排序，确保显示效果一致
-  const searchQuery = query.toLowerCase();
-
-  // 计算相关性分数并过滤
-  const getRelevanceScore = (title, remarks) => {
-    let score = 0;
-    let relevanceLevel = 0; // 0=无关, 1=低相关, 2=中相关, 3=高相关
-
-    // 标题完全匹配 +200分（最高优先级）
-    if (title === searchQuery) {
-      score += 200;
-      relevanceLevel = 3;
-      return { score, relevanceLevel }; // 完全匹配直接返回最高分
+  // 直接使用缓存的HTML，避免重新排序和过滤
+  if (cachedData.html) {
+    resultsDiv.innerHTML = cachedData.html;
+  } else {
+    // 兼容旧格式缓存数据
+    let filteredResults = cachedData.results;
+    const yellowFilterEnabled =
+      localStorage.getItem("yellowFilterEnabled") === "true";
+    if (yellowFilterEnabled) {
+      const banned = [
+        "伦理片",
+        "福利",
+        "里番动漫",
+        "门事件",
+        "萝莉少女",
+        "制服诱惑",
+        "国产传媒",
+        "cosplay",
+        "黑丝诱惑",
+        "无码",
+        "日本无码",
+        "有码",
+        "日本有码",
+        "SWAG",
+        "网红主播",
+        "色情片",
+        "同性片",
+        "福利视频",
+        "福利片",
+      ];
+      filteredResults = filteredResults.filter((item) => {
+        const typeName = item.type_name || "";
+        return !banned.some((keyword) => typeName.includes(keyword));
+      });
     }
 
-    // 标题以搜索词开头 +100分
-    if (title.startsWith(searchQuery)) {
-      score += 100;
-      relevanceLevel = 3;
-    }
+    // 对缓存结果应用智能排序，确保显示效果一致
+    const searchQuery = query.toLowerCase();
 
-    // 标题包含完整搜索词 +80分
-    if (title.includes(searchQuery)) {
-      score += 80;
-      relevanceLevel = Math.max(relevanceLevel, 2);
-    }
+    // 计算相关性分数并过滤
+    const getRelevanceScore = (title, remarks) => {
+      let score = 0;
+      let relevanceLevel = 0; // 0=无关, 1=低相关, 2=中相关, 3=高相关
 
-    // 分词匹配（更精确的分词）
-    const queryWords = searchQuery
-      .split(/[\s,，、]+/)
-      .filter((w) => w.length > 1);
-    let matchedWords = 0;
-    let totalWords = queryWords.length;
-
-    queryWords.forEach((word) => {
-      if (title.includes(word)) {
-        matchedWords++;
-        // 根据匹配位置给分
-        if (title.indexOf(word) === 0) {
-          score += 30; // 开头匹配
-          relevanceLevel = Math.max(relevanceLevel, 2);
-        } else {
-          score += 15; // 中间匹配
-          relevanceLevel = Math.max(relevanceLevel, 1);
-        }
+      // 标题完全匹配 +200分（最高优先级）
+      if (title === searchQuery) {
+        score += 200;
+        relevanceLevel = 3;
+        return { score, relevanceLevel }; // 完全匹配直接返回最高分
       }
-    });
 
-    // 如果所有词都匹配，额外加分
-    if (matchedWords === totalWords && totalWords > 0) {
-      score += 50;
-      relevanceLevel = Math.max(relevanceLevel, 2);
-    }
-
-    // 简介匹配（权重较低）
-    if (remarks.includes(searchQuery)) {
-      score += 10;
-      relevanceLevel = Math.max(relevanceLevel, 1);
-    }
-
-    queryWords.forEach((word) => {
-      if (remarks.includes(word)) {
-        score += 2;
-        relevanceLevel = Math.max(relevanceLevel, 1);
+      // 标题以搜索词开头 +100分
+      if (title.startsWith(searchQuery)) {
+        score += 100;
+        relevanceLevel = 3;
       }
-    });
 
-    return { score, relevanceLevel };
-  };
+      // 标题包含完整搜索词 +80分
+      if (title.includes(searchQuery)) {
+        score += 80;
+        relevanceLevel = Math.max(relevanceLevel, 2);
+      }
 
-  // 过滤和评分
-  const scoredResults = filteredResults.map((item) => {
-    const aName = (item.vod_name || "").toLowerCase();
-    const aRemarks = (item.vod_remarks || "").toLowerCase();
-    const { score, relevanceLevel } = getRelevanceScore(aName, aRemarks);
-
-    return {
-      ...item,
-      relevanceScore: score,
-      relevanceLevel: relevanceLevel,
-    };
-  });
-
-  // 智能过滤：只保留相关结果
-  const relevantResults = scoredResults.filter((item) => {
-    // 保留高相关和中相关的结果
-    if (item.relevanceLevel >= 2) return true;
-
-    // 对于低相关结果，需要满足额外条件
-    if (item.relevanceLevel === 1) {
-      // 检查是否有足够的匹配词
+      // 分词匹配（更精确的分词）
       const queryWords = searchQuery
         .split(/[\s,，、]+/)
         .filter((w) => w.length > 1);
-      const title = (item.vod_name || "").toLowerCase();
-      const remarks = (item.vod_remarks || "").toLowerCase();
+      let matchedWords = 0;
+      let totalWords = queryWords.length;
 
-      // 至少匹配50%的关键词，或者简介中有完整匹配
-      const matchedWords = queryWords.filter(
-        (word) => title.includes(word) || remarks.includes(word)
-      ).length;
+      queryWords.forEach((word) => {
+        if (title.includes(word)) {
+          matchedWords++;
+          // 根据匹配位置给分
+          if (title.indexOf(word) === 0) {
+            score += 30; // 开头匹配
+            relevanceLevel = Math.max(relevanceLevel, 2);
+          } else {
+            score += 15; // 中间匹配
+            relevanceLevel = Math.max(relevanceLevel, 1);
+          }
+        }
+      });
 
-      return (
-        matchedWords >= Math.ceil(queryWords.length * 0.5) ||
-        remarks.includes(searchQuery)
-      );
-    }
+      // 如果所有词都匹配，额外加分
+      if (matchedWords === totalWords && totalWords > 0) {
+        score += 50;
+        relevanceLevel = Math.max(relevanceLevel, 2);
+      }
 
-    return false; // 过滤掉无关结果
-  });
+      // 简介匹配（权重较低）
+      if (remarks.includes(searchQuery)) {
+        score += 10;
+        relevanceLevel = Math.max(relevanceLevel, 1);
+      }
 
-  // 按相关性分数排序
-  relevantResults.sort((a, b) => {
-    // 首先按相关性等级排序
-    if (a.relevanceLevel !== b.relevanceLevel) {
-      return b.relevanceLevel - a.relevanceLevel;
-    }
+      queryWords.forEach((word) => {
+        if (remarks.includes(word)) {
+          score += 2;
+          relevanceLevel = Math.max(relevanceLevel, 1);
+        }
+      });
 
-    // 然后按分数排序
-    if (a.relevanceScore !== b.relevanceScore) {
-      return b.relevanceScore - a.relevanceScore;
-    }
+      return { score, relevanceLevel };
+    };
 
-    // 如果分数相同，按标题长度排序（短的在前，通常更精确）
-    const aNameLength = (a.vod_name || "").length;
-    const bNameLength = (b.vod_name || "").length;
-    if (aNameLength !== bNameLength) {
-      return aNameLength - bNameLength;
-    }
+    // 过滤和评分
+    const scoredResults = filteredResults.map((item) => {
+      const aName = (item.vod_name || "").toLowerCase();
+      const aRemarks = (item.vod_remarks || "").toLowerCase();
+      const { score, relevanceLevel } = getRelevanceScore(aName, aRemarks);
 
-    // 如果标题长度也相同，按来源排序
-    return (a.source_name || "").localeCompare(b.source_name || "");
-  });
+      return {
+        ...item,
+        relevanceScore: score,
+        relevanceLevel: relevanceLevel,
+      };
+    });
 
-  // 更新filteredResults为智能排序后的结果
-  filteredResults = relevantResults.map((item) => {
-    // 移除临时添加的评分字段
-    const { relevanceScore, relevanceLevel, ...cleanItem } = item;
-    return cleanItem;
-  });
+    // 智能过滤：只保留相关结果
+    const relevantResults = scoredResults.filter((item) => {
+      // 保留高相关和中相关的结果
+      if (item.relevanceLevel >= 2) return true;
 
-  // 渲染结果
-  const safeResults = filteredResults
-    .map((item) => {
-      const safeId = item.vod_id
-        ? item.vod_id.toString().replace(/[^\w-]/g, "")
-        : "";
-      const safeName = (item.vod_name || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      const safeRemarks = (item.vod_remarks || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      const safePic = (item.vod_pic || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      const safeYear = (item.vod_year || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      const safeArea = (item.vod_area || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      const safeLang = (item.vod_lang || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      const safeSourceCode = (item.source_code || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      const safeSourceName = (item.source_name || "")
-        .toString()
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+      // 对于低相关结果，需要满足额外条件
+      if (item.relevanceLevel === 1) {
+        // 检查是否有足够的匹配词
+        const queryWords = searchQuery
+          .split(/[\s,，、]+/)
+          .filter((w) => w.length > 1);
+        const title = (item.vod_name || "").toLowerCase();
+        const remarks = (item.vod_remarks || "").toLowerCase();
 
-      const sourceInfo = safeSourceName
-        ? `<span class="text-xs text-gray-400">来源: ${safeSourceName}</span>`
-        : "";
+        // 至少匹配50%的关键词，或者简介中有完整匹配
+        const matchedWords = queryWords.filter(
+          (word) => title.includes(word) || remarks.includes(word)
+        ).length;
 
-      return `
-      <div class="bg-[#1a1a1a] rounded-lg overflow-hidden border border-[#333] hover:border-[#555] transition-all duration-300 hover:shadow-lg hover:shadow-black/20 group cursor-pointer"
-           onclick="showDetails('${safeId}', '${safeName.replace(
-        /'/g,
-        "\\'"
-      )}', '${safeSourceCode}')">
-        <div class="relative">
-          <img src="${safePic || "image/nomedia.png"}" 
-               alt="${safeName}" 
-               class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-               onerror="this.src='image/nomedia.png'">
-          <div class="absolute top-2 left-2 flex flex-wrap gap-1">
-            ${
-              (item.type_name || "").toString().replace(/</g, "&lt;")
-                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-blue-500 text-blue-300">
-              ${(item.type_name || "")
-                .toString()
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")}
-            </span>`
-                : ""
-            }
+        return (
+          matchedWords >= Math.ceil(queryWords.length * 0.5) ||
+          remarks.includes(searchQuery)
+        );
+      }
+
+      return false; // 过滤掉无关结果
+    });
+
+    // 按相关性分数排序
+    relevantResults.sort((a, b) => {
+      // 首先按相关性等级排序
+      if (a.relevanceLevel !== b.relevanceLevel) {
+        return b.relevanceLevel - a.relevanceLevel;
+      }
+
+      // 然后按分数排序
+      if (a.relevanceScore !== b.relevanceScore) {
+        return b.relevanceScore - a.relevanceScore;
+      }
+
+      // 如果分数相同，按标题长度排序（短的在前，通常更精确）
+      const aNameLength = (a.vod_name || "").length;
+      const bNameLength = (b.vod_name || "").length;
+      if (aNameLength !== bNameLength) {
+        return aNameLength - bNameLength;
+      }
+
+      // 如果标题长度也相同，按来源排序
+      return (a.source_name || "").localeCompare(b.source_name || "");
+    });
+
+    // 更新filteredResults为智能排序后的结果
+    filteredResults = relevantResults.map((item) => {
+      // 移除临时添加的评分字段
+      const { relevanceScore, relevanceLevel, ...cleanItem } = item;
+      return cleanItem;
+    });
+
+    // 渲染结果
+    const safeResults = filteredResults
+      .map((item) => {
+        const safeId = item.vod_id
+          ? item.vod_id.toString().replace(/[^\w-]/g, "")
+          : "";
+        const safeName = (item.vod_name || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeRemarks = (item.vod_remarks || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safePic = (item.vod_pic || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeYear = (item.vod_year || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeArea = (item.vod_area || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeLang = (item.vod_lang || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeSourceCode = (item.source_code || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+        const safeSourceName = (item.source_name || "")
+          .toString()
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+
+        const sourceInfo = safeSourceName
+          ? `<span class="text-xs text-gray-400">来源: ${safeSourceName}</span>`
+          : "";
+
+        return `
+        <div class="bg-[#1a1a1a] rounded-lg overflow-hidden border border-[#333] hover:border-[#555] transition-all duration-300 hover:shadow-lg hover:shadow-black/20 group cursor-pointer"
+             onclick="showDetails('${safeId}', '${safeName.replace(
+          /'/g,
+          "\\'"
+        )}', '${safeSourceCode}')">
+          <div class="relative">
+            <img src="${safePic || "image/nomedia.png"}" 
+                 alt="${safeName}" 
+                 class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                 onerror="this.src='image/nomedia.png'">
+            <div class="absolute top-2 left-2 flex flex-wrap gap-1">
+              ${
+                (item.type_name || "").toString().replace(/</g, "&lt;")
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-blue-500 text-blue-300">
+                ${(item.type_name || "")
+                  .toString()
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;")}
+              </span>`
+                  : ""
+              }
+            </div>
+          </div>
+          <div class="p-4">
+            <h3 class="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
+              ${safeName}
+            </h3>
+            <p class="text-sm text-gray-400 mb-3 line-clamp-2">
+              ${safeRemarks || "暂无简介"}
+            </p>
+            <div class="flex flex-wrap gap-1 mb-2">
+              ${
+                safeYear
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeYear}</span>`
+                  : ""
+              }
+              ${
+                safeArea
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeArea}</span>`
+                  : ""
+              }
+              ${
+                safeLang
+                  ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeLang}</span>`
+                  : ""
+              }
+            </div>
+            
+            <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
+              ${sourceInfo ? `<div>${sourceInfo}</div>` : "<div></div>"}
+            </div>
           </div>
         </div>
-        <div class="p-4">
-          <h3 class="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
-            ${safeName}
-          </h3>
-          <p class="text-sm text-gray-400 mb-3 line-clamp-2">
-            ${safeRemarks || "暂无简介"}
-          </p>
-          <div class="flex flex-wrap gap-1 mb-2">
-            ${
-              safeYear
-                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeYear}</span>`
-                : ""
-            }
-            ${
-              safeArea
-                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeArea}</span>`
-                : ""
-            }
-            ${
-              safeLang
-                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeLang}</span>`
-                : ""
-            }
-          </div>
-          
-          <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
-            ${sourceInfo ? `<div>${sourceInfo}</div>` : "<div></div>"}
-          </div>
+      `;
+      })
+      .join("");
+
+    // 添加搜索完成提示
+    const completionText = `
+      <div class="col-span-full text-center py-4 text-sm text-green-400">
+        <div class="flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <span>搜索已完成 - 共找到 ${filteredResults.length} 个结果</span>
         </div>
       </div>
     `;
-    })
-    .join("");
 
-  // 添加搜索完成提示
-  const completionText = `
-    <div class="col-span-full text-center py-4 text-sm text-green-400">
-      <div class="flex items-center justify-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>搜索已完成 - 共找到 ${filteredResults.length} 个结果</span>
-      </div>
-    </div>
-  `;
-
-  resultsDiv.innerHTML = safeResults + completionText;
+    resultsDiv.innerHTML = safeResults + completionText;
+  }
 
   // 更新搜索结果计数
   const searchResultsCount = document.getElementById("searchResultsCount");
   if (searchResultsCount) {
-    searchResultsCount.textContent = filteredResults.length;
+    searchResultsCount.textContent =
+      cachedData.resultsCount ||
+      (cachedData.results ? cachedData.results.length : 0);
   }
 
   // 更新URL状态
@@ -2385,8 +2392,134 @@ function processAndDisplayFinalResults(allResults, query) {
 
   // 保存搜索结果缓存，用于返回时直接显示
   const cacheKey = `searchResults_${query}`;
+
+  // 渲染最终结果HTML用于缓存
+  const finalSafeResults = allResults
+    .map((item) => {
+      const safeId = item.vod_id
+        ? item.vod_id.toString().replace(/[^\w-]/g, "")
+        : "";
+      const safeName = (item.vod_name || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const safeRemarks = (item.vod_remarks || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const safePic = (item.vod_pic || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const safeYear = (item.vod_year || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const safeArea = (item.vod_area || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const safeLang = (item.vod_lang || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const safeSourceCode = (item.source_code || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const safeSourceName = (item.source_name || "")
+        .toString()
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+      const sourceInfo = safeSourceName
+        ? `<span class="text-xs text-gray-400">来源: ${safeSourceName}</span>`
+        : "";
+
+      return `
+      <div class="bg-[#1a1a1a] rounded-lg overflow-hidden border border-[#333] hover:border-[#555] transition-all duration-300 hover:shadow-lg hover:shadow-black/20 group cursor-pointer"
+           onclick="showDetails('${safeId}', '${safeName.replace(
+        /'/g,
+        "\\'"
+      )}', '${safeSourceCode}')">
+        <div class="relative">
+          <img src="${safePic || "image/nomedia.png"}" 
+               alt="${safeName}" 
+               class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+               onerror="this.src='image/nomedia.png'">
+          <div class="absolute top-2 left-2 flex flex-wrap gap-1">
+            ${
+              (item.type_name || "").toString().replace(/</g, "&lt;")
+                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-blue-500 text-blue-300">
+              ${(item.type_name || "")
+                .toString()
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")}
+            </span>`
+                : ""
+            }
+          </div>
+        </div>
+        <div class="p-4">
+          <h3 class="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
+            ${safeName}
+          </h3>
+          <p class="text-sm text-gray-400 mb-3 line-clamp-2">
+            ${safeRemarks || "暂无简介"}
+          </p>
+          <div class="flex flex-wrap gap-1 mb-2">
+            ${
+              safeYear
+                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeYear}</span>`
+                : ""
+            }
+            ${
+              safeArea
+                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeArea}</span>`
+                : ""
+            }
+            ${
+              safeLang
+                ? `<span class="text-xs py-0.5 px-1.5 rounded bg-gray-700 text-gray-300">${safeLang}</span>`
+                : ""
+            }
+          </div>
+          
+          <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
+            ${sourceInfo ? `<div>${sourceInfo}</div>` : "<div></div>"}
+          </div>
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+
+  // 添加搜索完成提示
+  const completionText = `
+    <div class="col-span-full text-center py-4 text-sm text-green-400">
+      <div class="flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>搜索已完成 - 共找到 ${allResults.length} 个结果</span>
+      </div>
+    </div>
+  `;
+
+  const pageHTML = finalSafeResults + completionText;
+
   const cacheData = {
-    results: allResults,
+    html: pageHTML,
+    resultsCount: allResults.length,
     timestamp: Date.now(),
     query: query,
   };
