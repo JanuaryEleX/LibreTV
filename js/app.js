@@ -68,12 +68,15 @@ document.addEventListener("DOMContentLoaded", function () {
   setupPageLeaveHandlers();
 
   // 检查URL参数，处理搜索状态
+  console.log("页面初始化完成，开始检查URL状态");
   checkURLForSearchState();
 });
 
 // 检查URL中的搜索状态
 function checkURLForSearchState() {
   const path = window.location.pathname;
+  console.log("checkURLForSearchState - 当前路径:", path);
+
   if (path.startsWith("/s=")) {
     const query = decodeURIComponent(path.substring(3));
     const state = history.state;
@@ -82,11 +85,19 @@ function checkURLForSearchState() {
 
     if (state && state.status === "searching") {
       // 正在搜索状态，显示搜索中界面
+      console.log("显示搜索中状态");
       showSearchingState(query);
     } else {
       // 检查是否有缓存结果
       const cacheKey = `searchResults_${query}`;
       console.log("查找缓存键:", cacheKey);
+
+      // 列出所有相关的缓存键
+      const allKeys = Object.keys(localStorage);
+      const relatedKeys = allKeys.filter((key) =>
+        key.includes("searchResults_")
+      );
+      console.log("所有搜索缓存键:", relatedKeys);
 
       const cachedData = localStorage.getItem(cacheKey);
       console.log("缓存数据:", cachedData ? "存在" : "不存在");
@@ -127,6 +138,8 @@ function checkURLForSearchState() {
       document.getElementById("searchInput").value = query;
       search();
     }
+  } else {
+    console.log("路径不是搜索URL，跳过缓存检查");
   }
 }
 
