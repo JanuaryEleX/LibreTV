@@ -48,7 +48,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
           if (cacheAge < cacheExpirationTime) {
             // 缓存有效，不重新搜索，让app.js处理缓存显示
-            console.log("📦 index-page.js: 检测到有效缓存，跳过重新搜索");
             return;
           }
         } catch (e) {
@@ -96,7 +95,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (cacheAge < cacheExpirationTime) {
           // 缓存有效，不重新搜索，让app.js处理缓存显示
-          console.log("📦 index-page.js: 检测到有效缓存，跳过重新搜索");
           return;
         }
       } catch (e) {

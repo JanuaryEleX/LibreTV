@@ -94,22 +94,9 @@ function checkURLForSearchState() {
     const query = decodeURIComponent(path.substring(3));
     const state = history.state;
 
-    console.log("🔍 checkURLForSearchState 被调用:", {
-      path,
-      query,
-      state,
-      timestamp: new Date().toLocaleString(),
-    });
-
     // 优先检查缓存结果（无论state状态如何）
     const cacheKey = `searchResults_${query}`;
     const cachedData = localStorage.getItem(cacheKey);
-
-    console.log("📦 缓存检查:", {
-      cacheKey,
-      hasCachedData: !!cachedData,
-      cachedDataLength: cachedData ? cachedData.length : 0,
-    });
 
     if (cachedData) {
       try {
@@ -119,22 +106,12 @@ function checkURLForSearchState() {
         const cacheAge = Date.now() - parsedData.timestamp;
         const cacheExpirationTime = 2 * 60 * 60 * 1000; // 2小时
 
-        console.log("⏰ 缓存时间检查:", {
-          cacheAge,
-          cacheExpirationTime,
-          isExpired: cacheAge >= cacheExpirationTime,
-          cacheTimestamp: new Date(parsedData.timestamp).toLocaleString(),
-          hasHtml: !!parsedData.html,
-        });
-
         if (cacheAge < cacheExpirationTime) {
           // 缓存有效，直接显示
-          console.log("✅ 使用缓存结果");
           displayCachedResults(parsedData, query);
           return;
         } else {
           // 缓存过期，删除
-          console.log("❌ 缓存已过期，删除");
           localStorage.removeItem(cacheKey);
         }
       } catch (e) {
@@ -146,11 +123,9 @@ function checkURLForSearchState() {
     // 如果没有有效缓存，再检查state状态
     if (state && state.status === "searching") {
       // 正在搜索状态，显示搜索中界面
-      console.log("🔄 显示搜索中状态");
       showSearchingState(query);
     } else {
       // 没有缓存也没有搜索状态，重新搜索
-      console.log("🚀 开始重新搜索");
       document.getElementById("searchInput").value = query;
       search();
     }
@@ -894,12 +869,6 @@ async function search() {
       const batchStartIndex = i;
       const batchEndIndex = Math.min(i + batchSize, selectedAPIs.length);
 
-      console.log(
-        `🔄 开始搜索批次 ${completedBatches + 1}: API ${
-          batchStartIndex + 1
-        }-${batchEndIndex}`
-      );
-
       // 并行搜索当前批次的所有API
       const batchPromises = currentBatch.map(async (apiId, batchIndex) => {
         try {
@@ -1632,13 +1601,6 @@ function updateSearchURL(query, status) {
 
 // 显示缓存的搜索结果
 function displayCachedResults(cachedData, query) {
-  console.log("🎯 displayCachedResults 被调用:", {
-    query,
-    hasHtml: !!cachedData.html,
-    resultsCount: cachedData.resultsCount,
-    timestamp: new Date().toLocaleString(),
-  });
-
   // 设置搜索状态为非活跃（缓存表示搜索已完成）
   window.isSearchActive = false;
   window.currentSearchQuery = query;
