@@ -28,6 +28,12 @@ export default async function middleware(request) {
     return;
   }
 
+  // 跳过watch.html，因为它只是一个中转页面，会自动跳转到player.html
+  if (url.pathname === "/watch.html") {
+    console.log(`Vercel Middleware: 跳过中转页面 - ${url.pathname}`);
+    return;
+  }
+
   // 改进路径匹配：处理所有可能的HTML页面路径，包括搜索页面
   const isHtmlPage =
     url.pathname.endsWith(".html") ||
