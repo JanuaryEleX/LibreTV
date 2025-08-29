@@ -1670,22 +1670,22 @@ function displayCachedResults(cachedData, query) {
       let score = 0;
       let relevanceLevel = 0; // 0=无关, 1=低相关, 2=中相关, 3=高相关
 
-      // 标题完全匹配 +200分（最高优先级）
+      // 标题完全匹配 +1000分（最高优先级）
       if (title === searchQuery) {
-        score += 200;
+        score += 1000;
         relevanceLevel = 3;
         return { score, relevanceLevel }; // 完全匹配直接返回最高分
       }
 
-      // 标题以搜索词开头 +100分
+      // 标题以搜索词开头 +150分
       if (title.startsWith(searchQuery)) {
-        score += 100;
+        score += 150;
         relevanceLevel = 3;
       }
 
-      // 标题包含完整搜索词 +80分
+      // 标题包含完整搜索词 +100分
       if (title.includes(searchQuery)) {
-        score += 80;
+        score += 100;
         relevanceLevel = Math.max(relevanceLevel, 2);
       }
 
@@ -1987,10 +1987,7 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
   }
 
   // 检查搜索ID是否匹配
-  if (
-    window.currentSearchId &&
-    window.currentSearchId !== window.currentSearchId
-  ) {
+  if (window.currentSearchId && window.currentSearchId !== currentSearchId) {
     return;
   }
 
@@ -2047,26 +2044,119 @@ function displayProgressiveResults(results, currentStage, totalStages, query) {
     return;
   }
 
-  // 简单的相关性排序（用于渐进式显示）
-  const sortedResults = results.sort((a, b) => {
-    const aName = (a.vod_name || "").toLowerCase();
-    const bName = (b.vod_name || "").toLowerCase();
-    const queryLower = query.toLowerCase();
+  // 使用与最终排序一致的评分排序（用于渐进式显示）
+  const getRelevanceScoreForProgressive = (title, remarks) => {
+    let score = 0;
+    let relevanceLevel = 0;
 
-    // 标题完全匹配优先
-    if (aName === queryLower && bName !== queryLower) return -1;
-    if (bName === queryLower && aName !== queryLower) return 1;
+    // 标题完全匹配 +1000分（最高优先级）
+    if (title === query.toLowerCase()) {
+      score += 1000;
+      relevanceLevel = 3;
+      return { score, relevanceLevel };
+    }
 
-    // 标题包含搜索词优先
-    if (aName.includes(queryLower) && !bName.includes(queryLower)) return -1;
-    if (bName.includes(queryLower) && !aName.includes(queryLower)) return 1;
+    // 标题以搜索词开头 +150分
+    if (title.startsWith(query.toLowerCase())) {
+      score += 150;
+      relevanceLevel = 3;
+    }
 
-    // 按标题长度排序
-    return aName.length - bName.length;
+    // 标题包含完整搜索词 +100分
+    if (title.includes(query.toLowerCase())) {
+      score += 100;
+      relevanceLevel = Math.max(relevanceLevel, 2);
+    }
+
+    // 分词匹配
+    const queryWords = query
+      .toLowerCase()
+      .split(/[\s,，、]+/)
+      .filter((w) => w.length > 1);
+    let matchedWords = 0;
+    let totalWords = queryWords.length;
+
+    queryWords.forEach((word) => {
+      if (title.includes(word)) {
+        matchedWords++;
+        if (title.indexOf(word) === 0) {
+          score += 30; // 开头匹配
+          relevanceLevel = Math.max(relevanceLevel, 2);
+        } else {
+          score += 15; // 中间匹配
+          relevanceLevel = Math.max(relevanceLevel, 1);
+        }
+      }
+    });
+
+    // 如果所有词都匹配，额外加分
+    if (matchedWords === totalWords && totalWords > 0) {
+      score += 50;
+      relevanceLevel = Math.max(relevanceLevel, 2);
+    }
+
+    // 简介匹配
+    if (remarks.includes(query.toLowerCase())) {
+      score += 10;
+      relevanceLevel = Math.max(relevanceLevel, 1);
+    }
+
+    queryWords.forEach((word) => {
+      if (remarks.includes(word)) {
+        score += 2;
+        relevanceLevel = Math.max(relevanceLevel, 1);
+      }
+    });
+
+    return { score, relevanceLevel };
+  };
+
+  // 评分和排序
+  const scoredResults = results.map((item) => {
+    const aName = (item.vod_name || "").toLowerCase();
+    const aRemarks = (item.vod_remarks || "").toLowerCase();
+    const { score, relevanceLevel } = getRelevanceScoreForProgressive(
+      aName,
+      aRemarks
+    );
+
+    return {
+      ...item,
+      relevanceScore: score,
+      relevanceLevel: relevanceLevel,
+    };
   });
 
-  // 渲染结果
+  // 按相关性分数排序
+  const sortedResults = scoredResults.sort((a, b) => {
+    // 首先按相关性等级排序
+    if (a.relevanceLevel !== b.relevanceLevel) {
+      return b.relevanceLevel - a.relevanceLevel;
+    }
+
+    // 然后按分数排序
+    if (a.relevanceScore !== b.relevanceScore) {
+      return b.relevanceScore - a.relevanceScore;
+    }
+
+    // 如果分数相同，按标题长度排序
+    const aNameLength = (a.vod_name || "").length;
+    const bNameLength = (b.vod_name || "").length;
+    if (aNameLength !== bNameLength) {
+      return aNameLength - bNameLength;
+    }
+
+    // 如果标题长度也相同，按来源排序
+    return (a.source_name || "").localeCompare(b.source_name || "");
+  });
+
+  // 渲染结果（移除评分字段）
   const safeResults = sortedResults
+    .map((item) => {
+      // 移除临时添加的评分字段
+      const { relevanceScore, relevanceLevel, ...cleanItem } = item;
+      return cleanItem;
+    })
     .map((item) => {
       const safeId = item.vod_id
         ? item.vod_id.toString().replace(/[^\w-]/g, "")
@@ -2217,10 +2307,7 @@ function processAndDisplayFinalResults(allResults, query) {
   }
 
   // 检查搜索ID是否匹配
-  if (
-    window.currentSearchId &&
-    window.currentSearchId !== window.currentSearchId
-  ) {
+  if (window.currentSearchId && window.currentSearchId !== currentSearchId) {
     return;
   }
 
@@ -2228,6 +2315,37 @@ function processAndDisplayFinalResults(allResults, query) {
   if (window.currentSearchQuery && window.currentSearchQuery !== query) {
     return;
   }
+  // 处理搜索结果过滤：如果启用了黄色内容过滤，则过滤掉分类含有敏感内容的项目
+  const yellowFilterEnabled =
+    localStorage.getItem("yellowFilterEnabled") === "true";
+  if (yellowFilterEnabled) {
+    const banned = [
+      "伦理片",
+      "福利",
+      "里番动漫",
+      "门事件",
+      "萝莉少女",
+      "制服诱惑",
+      "国产传媒",
+      "cosplay",
+      "黑丝诱惑",
+      "无码",
+      "日本无码",
+      "有码",
+      "日本有码",
+      "SWAG",
+      "网红主播",
+      "色情片",
+      "同性片",
+      "福利视频",
+      "福利片",
+    ];
+    allResults = allResults.filter((item) => {
+      const typeName = item.type_name || "";
+      return !banned.some((keyword) => typeName.includes(keyword));
+    });
+  }
+
   // 智能相关性排序和过滤：只显示相关结果
   const searchQuery = query.toLowerCase();
 
@@ -2236,22 +2354,22 @@ function processAndDisplayFinalResults(allResults, query) {
     let score = 0;
     let relevanceLevel = 0; // 0=无关, 1=低相关, 2=中相关, 3=高相关
 
-    // 标题完全匹配 +200分（最高优先级）
+    // 标题完全匹配 +1000分（最高优先级）
     if (title === searchQuery) {
-      score += 200;
+      score += 1000;
       relevanceLevel = 3;
       return { score, relevanceLevel }; // 完全匹配直接返回最高分
     }
 
-    // 标题以搜索词开头 +100分
+    // 标题以搜索词开头 +150分
     if (title.startsWith(searchQuery)) {
-      score += 100;
+      score += 150;
       relevanceLevel = 3;
     }
 
-    // 标题包含完整搜索词 +80分
+    // 标题包含完整搜索词 +100分
     if (title.includes(searchQuery)) {
-      score += 80;
+      score += 100;
       relevanceLevel = Math.max(relevanceLevel, 2);
     }
 
@@ -2556,37 +2674,6 @@ function processAndDisplayFinalResults(allResults, query) {
 
   // 搜索完成时更新URL状态
   updateSearchURL(query, "complete");
-
-  // 处理搜索结果过滤：如果启用了黄色内容过滤，则过滤掉分类含有敏感内容的项目
-  const yellowFilterEnabled =
-    localStorage.getItem("yellowFilterEnabled") === "true";
-  if (yellowFilterEnabled) {
-    const banned = [
-      "伦理片",
-      "福利",
-      "里番动漫",
-      "门事件",
-      "萝莉少女",
-      "制服诱惑",
-      "国产传媒",
-      "cosplay",
-      "黑丝诱惑",
-      "无码",
-      "日本无码",
-      "有码",
-      "日本有码",
-      "SWAG",
-      "网红主播",
-      "色情片",
-      "同性片",
-      "福利视频",
-      "福利片",
-    ];
-    allResults = allResults.filter((item) => {
-      const typeName = item.type_name || "";
-      return !banned.some((keyword) => typeName.includes(keyword));
-    });
-  }
 
   // 添加XSS保护，使用textContent和属性转义
   const safeResults = allResults
