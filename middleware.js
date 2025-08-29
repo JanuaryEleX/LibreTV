@@ -7,6 +7,27 @@ export default async function middleware(request) {
 
   console.log(`Vercel Middleware: 处理请求 - ${url.pathname}`);
 
+  // 跳过API和静态资源
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/_next/") ||
+    url.pathname.includes(".js") ||
+    url.pathname.includes(".css") ||
+    url.pathname.includes(".png") ||
+    url.pathname.includes(".jpg") ||
+    url.pathname.includes(".jpeg") ||
+    url.pathname.includes(".gif") ||
+    url.pathname.includes(".svg") ||
+    url.pathname.includes(".ico") ||
+    url.pathname.includes(".woff") ||
+    url.pathname.includes(".woff2") ||
+    url.pathname.includes(".ttf") ||
+    url.pathname.includes(".eot")
+  ) {
+    console.log(`Vercel Middleware: 跳过静态资源 - ${url.pathname}`);
+    return;
+  }
+
   // 改进路径匹配：处理所有可能的HTML页面路径，包括搜索页面
   const isHtmlPage =
     url.pathname.endsWith(".html") ||
@@ -86,10 +107,3 @@ export default async function middleware(request) {
 
   return response;
 }
-
-export const config = {
-  matcher: [
-    "/",
-    "/((?!api|_next/static|_vercel|favicon.ico|.*\\.(js|css|png|jpg|jpeg|gif|svg|ico)).*)",
-  ],
-};
