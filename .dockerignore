@@ -1,11 +1,57 @@
+# 版本控制和部署相关
 .github/
-node_modules/
-netlify*
+.git/
 .gitignore
-.dockerignore
-.env*
+.gitattributes
+
+# 开发工具配置
 nodemon.json
 vercel.json
-Dockerfile*
+netlify.toml
+render.yaml
 docker-compose*.yml
-.docker/
+Dockerfile*
+
+# 环境配置
+.env*
+.dockerignore
+
+# 依赖目录
+node_modules/
+
+# 部署平台配置
+netlify/
+functions/
+api/
+
+# 开发文档
+README.md
+CONTRIBUTING.md
+LICENSE
+
+# 设计文件
+*.psd
+*.ai
+*.sketch
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+.tmp/
+.temp/
+
+# 测试文件
+test-*.js
+*.test.js
+*.spec.js
+
+# 调试文件
+debug-*.js
+*.debug.js
+
+# 备份文件
+*.bak
+*.backup
+*~
