@@ -156,6 +156,10 @@ const API_SITES = {
         name: '玉兔资源',
         adult: true
     },
+    laoyaziyuan:{name:"🔞老鸭资源",adult: true,api:"https://api.apilyzy.com/api.php/provide/vod/"},
+    didiziyuan:{name:"🔞滴滴资源",adult: true,api:"https://api.ddapi.cc/api.php/provide/vod/"},
+    leboziyuan:{name:"🔞乐播资源",adult: true,api:"https://lbapi9.com/api.php/provide/vod/"},
+    KKxiezhen:{name:"🔞KK写真",adult: true,api:"https://kkzy.me/api.php/provide/vod/"},
     //ARCHIVE https://telegra.ph/APIs-08-12
 };
 
