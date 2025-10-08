@@ -20,13 +20,145 @@ const SITE_CONFIG = {
     version: '1.0.3'
 };
 
+
 // API站点配置
 const API_SITES = {
-    testSource: {
-        api: 'https://www.example.com/api.php/provide/vod',
-        name: '空内容测试源',
+    heimuer: {
+        api: 'https://json.heimuer.xyz',
+        name: '黑木耳',
+        detail: 'https://heimuer.tv',
+    },
+    dyttzy: {
+        api: 'http://caiji.dyttzyapi.com',
+        name: '电影天堂资源',
+        detail: 'http://caiji.dyttzyapi.com',
+    },
+    ffzy: {
+        api: 'http://ffzy5.tv',
+        name: '非凡影视',
+        detail: 'http://ffzy5.tv',
+    },
+    tyyszy: {
+        api: 'https://tyyszy.com',
+        name: '天涯资源',
+    },
+    ckzy: {
+        api: 'https://www.ckzy1.com',
+        name: 'CK资源',
+        adult: true
+    },
+    zy360: {
+        api: 'https://360zy.com',
+        name: '360资源',
+    },
+    wolong: {
+        api: 'https://wolongzyw.com',
+        name: '卧龙资源',
+    },
+    hwba: {
+        api: 'https://cjhwba.com',
+        name: '华为吧资源',
+    },
+    jisu: {
+        api: 'https://jszyapi.com',
+        name: '极速资源',
+        detail: 'https://jszyapi.com'
+    },
+    dbzy: {
+        api: 'https://dbzy.com',
+        name: '豆瓣资源',
+    },
+    bfzy: {
+        api: 'https://bfzyapi.com',
+        name: '暴风资源',
+    },
+    mozhua: {
+        api: 'https://mozhuazy.com',
+        name: '魔爪资源',
+    },
+    mdzy: {
+        api: 'https://www.mdzyapi.com',
+        name: '魔都资源',
+    },
+    ruyi: {
+        api: 'https://cj.rycjapi.com',
+        name: '如意资源',
+    },
+    jkun: {
+        api: 'https://jkunzyapi.com',
+        name: 'jkun资源',
+        adult: true
+    },
+    bwzy: {
+        api: 'https://api.bwzym3u8.com',
+        name: '百万资源',
+        adult: true
+    },
+    souav: {
+        api: 'https://api.souavzy.vip',
+        name: 'souav资源',
+        adult: true
+    },
+    r155: {
+        api: 'https://155api.com',
+        name: '155资源',
+        adult: true
+    },
+    lsb: {
+        api: 'https://apilsbzy1.com',
+        name: 'lsb资源',
+        adult: true
+    },
+    huangcang: {
+        api: 'https://hsckzy.vip',
+        name: '黄色仓库',
+        adult: true,
+        detail: 'https://hsckzy.vip'
+    },
+    zuid: {
+        api: 'https://api.zuidapi.com',
+        name: '最大资源'
+    },
+    yutu: {
+        api: 'https://yutuzy10.com',
+        name: '玉兔资源',
+        adult: true
+    },
+    yinghua: {
+        api: 'https://m3u8.apiyhzy.com',
+        name: '樱花资源'
+    },
+    baidu: {
+        api: 'https://api.apibdzy.com',
+        name: '百度云资源'
+    },
+    wujin: {
+        api: 'https://api.wujinapi.me',
+        name: '无尽资源'
+    },
+    wwzy: {
+        api: 'https://wwzy.tv',
+        name: '旺旺短剧'
+    },
+    ikun: {
+        api: 'https://ikunzyapi.com',
+        name: 'iKun资源'
+    },
+    lzizy: {
+        api: 'https://cj.lziapi.com',
+        name: '量子资源站'
+    },
+    hongniu: {
+        api: 'https://www.hongniuzy2.com',
+        name: '红牛资源',
+        key: 'word'
+    },
+    sezy: {
+        api: 'https://www.avre06.com',
+        name: '色资源',
         adult: true
     }
+
     //ARCHIVE https://telegra.ph/APIs-08-12
 };
 
