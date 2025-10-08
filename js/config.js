@@ -160,6 +160,160 @@ const API_SITES = {
     didiziyuan:{name:"🔞滴滴资源",adult: true,api:"https://api.ddapi.cc/api.php/provide/vod/"},
     leboziyuan:{name:"🔞乐播资源",adult: true,api:"https://lbapi9.com/api.php/provide/vod/"},
     KKxiezhen:{name:"🔞KK写真",adult: true,api:"https://kkzy.me/api.php/provide/vod/"},
+        senanguoziyuan: {
+        api: 'https://api.sexnguon.com/api.php/provide/vod',
+        name: '森南资源',
+        adult: true
+    },
+    senlinziyuan: {
+        api: 'http://slapibf.com/api.php/provide/vod',
+        name: '森林资源',
+        adult: true
+    },
+    leboziyuan: {
+        api: 'https://lbapi9.com/api.php/provide/vod',
+        name: '乐播资源',
+        adult: true
+    },
+    fanhaoziyuan: {
+        api: 'http://fhapi9.com/api.php/provide/vod',
+        name: '番号资源',
+        adult: true
+    },
+    didiziyuan: {
+        api: 'https://api.ddapi.cc/api.php/provide/vod',
+        name: '滴滴资源',
+        adult: true
+    },
+    shipin91: {
+        api: 'https://91av.cyou/api.php/provide/vod',
+        name: '美少女资源',
+        adult: true
+    },
+    yutuziyuan: {
+        api: 'https://apiyutu.com/api.php/provide/vod',
+        name: '御兔资源',
+        adult: true
+    },
+    Xxibaoziyuan: {
+        api: 'https://www.xxibaozyw.com/api.php/provide/vod',
+        name: 'X细胞资源',
+        adult: true
+    },
+    yuenanziyuan: {
+        api: 'https://vnzyz.com/api.php/provide/vod',
+        name: '越南资源',
+        adult: true
+    },
+    naixiangxiangziyuan: {
+        api: 'https://naixxzy.com/api.php/provide/vod',
+        name: '奶香香资源',
+        adult: true
+    },
+    yinshuiji: {
+        api: 'https://www.xrbsp.com/api.php/provide/vod',
+        name: '饮水机资源',
+        adult: true
+    },
+    huangguaziyuan: {
+        api: 'https://www.avre06.com/api.php/provide/vod',
+        name: '黄瓜资源',
+        adult: true
+    },
+    ziyuan115: {
+        api: 'https://155api.com/api.php/provide/vod',
+        name: '115资源',
+        adult: true
+    },
+    // 解析未测试
+    baipiao: {
+        api: 'https://www.kxgav.com/api/json.php',
+        name: '白漂资源',
+        adult: true
+    },
+    jumaoziyuan: {
+        api: 'https://to.to-long.com/api.php/provide/vod',
+        name: '橘猫资源',
+        adult: true
+    },
+    jingpinziyuan: {
+        api: 'https://www.jingpinx.com/api.php/provide/vod',
+        name: '精品资源',
+        adult: true
+    },
+    xiaojiziyuan: {
+        api: 'https://api.xiaojizy.live/provide/vod',
+        name: '小鸡资源',
+        adult: true
+    },
+    aosikaziyuanwang: {
+        api: 'http://aosikazy.com/api.php/provide/vod',
+        name: '奥斯卡资源网',
+        adult: true
+    },
+    // 解析未测试
+    AIvinziyuan: {
+        api: 'hhttp://lbapiby.com/api.php/provide/vod/at/json',
+        name: 'AIvin资源',
+        adult: true
+    },
+    shayuziyuan: {
+        api: 'https://shayuapi.com/api.php/provide/vod',
+        name: '鲨鱼资源',
+        adult: true
+    },
+    shileyuan: {
+        api: 'https://xxavs.com/api.php/provide/vod',
+        name: '湿乐园资源',
+        adult: true
+    },
+    // 解析未测试
+    huangsecangkuziyuan: {
+        api: 'https://hsckzy888.com/api.php/provide/vod/at/xml',
+        name: '黄色仓库资源',
+        adult: true
+    },
+    youyiziyuan: {
+        api: 'https://a.uezy.pw/api.php/provide/vod',
+        name: '优异资源',
+        adult: true
+    },
+    CKziyuan: {
+        api: 'https://ckzy.me/api.php/provide/vod',
+        name: 'CK资源',
+        adult: true
+    },
+    xingbaziyuan: {
+        api: 'https://xingba222.com/api.php/provide/vod/at/xml',
+        name: '杏吧资源',
+        adult: true
+    },
+    // 解析未测试
+    xiangnaier: {
+        api: 'https://www.gdlsp.com/api/json.php',
+        name: '香奈儿资源',
+        adult: true
+    },
+    chengren18: {
+        api: 'http://91md.me/api.php/provide/vod',
+        name: '成人18+资源',
+        adult: true
+    },
+    danaiziziyuan: {
+        api: 'https://apidanaizi.com/api.php/provide/vod',
+        name: '大奈资源',
+        adult: true
+    },
+    laosebiziyuan: {
+        api: 'https://apilsbzy1.com/api.php/provide/vod',
+        name: 'LSP资源',
+        adult: true
+    },
+    lajiaoziyuan: {
+        api: 'https://apilj.com/api.php/provide/vod',
+        name: '辣椒资源',
+        adult: true
+    },
     //ARCHIVE https://telegra.ph/APIs-08-12
 };
 
