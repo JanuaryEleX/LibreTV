@@ -485,6 +485,35 @@ function selectAllAPIs(selectAll = true, excludeAdult = false) {
   checkAdultAPIsSelected();
 }
 
+// 仅全选黄色资源（成人类）API
+// 说明：会选中带有 `api-adult` 标记的复选框，同时取消勾选非成人项。
+// 覆盖范围：内置 API（#apiCheckboxes）与自定义 API（#customApisList）
+function selectOnlyAdultAPIs() {
+  // 若当前开启了“黄色内容过滤”，先关闭并渲染成人资源区
+  const yellowFilterToggle = document.getElementById("yellowFilterToggle");
+  if (yellowFilterToggle && yellowFilterToggle.checked) {
+    yellowFilterToggle.checked = false;
+    localStorage.setItem("yellowFilterEnabled", "false");
+    // 渲染成人资源列表（若尚未渲染）
+    addAdultAPI();
+  }
+
+  const allCheckboxes = document.querySelectorAll(
+    '#apiCheckboxes input[type="checkbox"], #customApisList input[type="checkbox"]'
+  );
+
+  allCheckboxes.forEach((checkbox) => {
+    if (checkbox.classList.contains("api-adult")) {
+      checkbox.checked = true;
+    } else {
+      checkbox.checked = false;
+    }
+  });
+
+  // 更新已选列表并触发黄色过滤联动逻辑
+  updateSelectedAPIs();
+  checkAdultAPIsSelected();
+}
 // 显示添加自定义API表单
 function showAddCustomApiForm() {
   const form = document.getElementById("addCustomApiForm");
